@@ -111,17 +111,24 @@ async def get_season_schedule(year: int) -> dict:
 
 @app.get(
     "/api/standings/drivers",
-    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    responses={500: {"model": ErrorResponse}},
 )
 async def get_driver_standings(year: int) -> dict:
     """Driver championship standings for a given year.
 
     Example: `/api/standings/drivers?year=2024`
     """
-    if year < 1950 or year > 2030:
-        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+    import datetime
+    current_year = datetime.datetime.now().year
 
-    current_year = 2026  # matches current F1 season
+    if year < 1950:
+        return {
+            "season": year,
+            "type": "drivers",
+            "standings": [],
+            "message": "The Formula 1 World Championship was not held before 1950.",
+        }
+
     if year > current_year:
         return {
             "season": year,
@@ -148,17 +155,24 @@ async def get_driver_standings(year: int) -> dict:
 
 @app.get(
     "/api/standings/constructors",
-    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+    responses={500: {"model": ErrorResponse}},
 )
 async def get_constructor_standings(year: int) -> dict:
     """Constructor championship standings for a given year.
 
     Example: `/api/standings/constructors?year=2024`
     """
-    if year < 1950 or year > 2030:
-        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+    import datetime
+    current_year = datetime.datetime.now().year
 
-    current_year = 2026  # matches current F1 season
+    if year < 1950:
+        return {
+            "season": year,
+            "type": "constructors",
+            "standings": [],
+            "message": "The Formula 1 World Championship was not held before 1950.",
+        }
+
     if year > current_year:
         return {
             "season": year,
