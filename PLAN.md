@@ -47,7 +47,7 @@ This is the single most valuable feature to end-users: they instantly get an eas
 | Component | Technology | Reason |
 |-----------|------------|--------|
 | Backend | Python + FastAPI | Lightweight, async-friendly, easy to set up |
-| External API | Ergast Developer API | Free, no auth required, comprehensive F1 data |
+| External API | Jolpica-F1 (Ergast-compatible) | Free, no auth required, official Ergast replacement |
 | AI Layer | OpenAI-compatible LLM prompt | Structured JSON output per specification |
 | CLI / Demo | Simple Python script or curl | Easy to demonstrate |
 | Package management | pip + requirements.txt | Standard Python ecosystem |
@@ -153,17 +153,19 @@ lab9/
 4. Data sent to AI prompt per the defined system prompt
 5. JSON response returned to user
 
-### Ergast API Endpoints Used
+### Jolpica-F1 API Endpoints Used
+
+The original Ergast API was deprecated end of 2024. We use the Jolpica-F1 community mirror (`api.jolpi.ca`), which is fully API-compatible.
 
 ```
 # Latest race
-http://ergast.com/api/f1/current/last/results.json
+https://api.jolpi.ca/ergast/f1/current/last/results.json
 
 # Specific race by year and round
-http://ergast.com/api/f1/{year}/{round}/results.json
+https://api.jolpi.ca/ergast/f1/{year}/{round}/results.json
 
 # Race schedule (for previews)
-http://ergast.com/api/f1/{year}.json
+https://api.jolpi.ca/ergast/f1/{year}.json
 ```
 
 ### Output Format (per specification)
