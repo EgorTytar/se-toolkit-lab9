@@ -253,6 +253,54 @@
     .ai-section h4 .dot.orange { background: var(--orange); }
     .ai-section p { font-size: 0.9rem; line-height: 1.7; }
 
+    /* Driver link */
+    .driver-link {
+      color: var(--blue); text-decoration: none; cursor: pointer;
+      font-weight: 600; transition: color 0.2s;
+    }
+    .driver-link:hover { color: #6bb5ff; text-decoration: underline; }
+
+    /* Driver page */
+    .driver-page { display: none; }
+    .driver-page.visible { display: block; }
+    .driver-profile {
+      padding: 1.25rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 1.5rem;
+    }
+    .driver-profile h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .driver-profile .meta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--text-muted); }
+    .driver-profile .meta span { display: flex; align-items: center; gap: 0.3rem; }
+    .driver-stats {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem; margin-top: 1rem;
+    }
+    .driver-stat-card {
+      padding: 0.75rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; text-align: center;
+    }
+    .driver-stat-card .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+    .driver-stat-card .value { font-size: 1.3rem; font-weight: 700; margin-top: 0.25rem; }
+
+    .driver-season-select {
+      display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;
+    }
+    .driver-season-select label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .driver-season-select input {
+      width: 100px; padding: 0.4rem 0.6rem; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+      font-size: 0.85rem; outline: none;
+    }
+    .driver-season-select input:focus { border-color: var(--blue); }
+    .driver-season-select .btn-primary { padding: 0.4rem 1rem; font-size: 0.8rem; }
+
+    .back-btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.4rem 0.8rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text-muted); font-size: 0.8rem;
+      cursor: pointer; margin-bottom: 1rem; transition: all 0.2s;
+    }
+    .back-btn:hover { background: var(--surface-hover); color: var(--text); }
+
     /* Footer */
     footer {
       margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border);
@@ -318,6 +366,13 @@
         <button class="type-btn" onclick="showStandingsType('constructors')">Constructors</button>
       </div>
       <div id="standings-content"></div>
+    </div>
+
+    <!-- Driver Detail Page -->
+    <div class="driver-page" id="section-driver">
+      <div class="back-btn" onclick="goBack()">← Back</div>
+      <div id="driver-status" class="status"></div>
+      <div id="driver-content"></div>
     </div>
 
     <footer>
@@ -699,7 +754,11 @@
         html += '<tr>';
         html += `<td class="pos ${posClass}">${s.position}</td>`;
         if (data.type === 'drivers') {
-          html += `<td class="name">${s.driver_name}</td>`;
+          const dId = s.driver_id || '';
+          const linkHtml = dId
+            ? `<span class="driver-link" onclick="openDriver('${dId}')">${s.driver_name}</span>`
+            : s.driver_name;
+          html += `<td class="name">${linkHtml}</td>`;
           html += `<td class="team">${s.constructor}</td>`;
         } else {
           html += `<td class="name">${s.constructor}</td>`;
@@ -739,6 +798,173 @@
 
     checkHealth();
     fetchLatest();
+
+    // ── Driver pages ──
+    let previousView = null;
+
+    function openDriver(driverId) {
+      previousView = {
+        tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
+        standingsYear: currentStandingsYear,
+      };
+      window.location.hash = `#/driver/${driverId}`;
+      loadDriverPage(driverId);
+    }
+
+    function goBack() {
+      window.location.hash = '';
+      if (previousView) {
+        switchTab(previousView.tab);
+        if (previousView.tab === 'standings' && previousView.standingsYear) {
+          document.getElementById('input-standings-year').value = previousView.standingsYear;
+          fetchStandingsData(previousView.standingsYear, currentStandingsType);
+        }
+      } else {
+        switchTab('latest');
+      }
+    }
+
+    async function loadDriverPage(driverId) {
+      const content = document.getElementById('driver-content');
+      content.innerHTML = `<div style="text-align:center;padding:2rem;"><span class="spinner"></span> Loading driver…</div>`;
+
+      // Hide all other sections
+      document.getElementById('section-latest').classList.remove('visible');
+      document.getElementById('section-season-controls').classList.remove('visible');
+      document.getElementById('section-standings').classList.remove('visible');
+      document.getElementById('season-header').classList.remove('visible');
+      document.getElementById('race-list').classList.remove('visible');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+      document.getElementById('section-driver').classList.add('visible');
+
+      try {
+        const res = await fetch(`/api/drivers/${driverId}`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        renderDriverPage(data.driver, content);
+      } catch (e) {
+        content.innerHTML = `<div class="standings-empty"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
+      }
+    }
+
+    function renderDriverPage(driver, container) {
+      const defaultYear = new Date().getFullYear();
+      const num = driver.permanent_number ? `#${driver.permanent_number}` : '';
+
+      let html = `
+        <div class="driver-profile">
+          <h2>${driver.full_name} ${num}</h2>
+          <div class="meta">
+            <span>🏳️ ${driver.nationality}</span>
+            ${driver.date_of_birth ? `<span>🎂 ${driver.date_of_birth}</span>` : ''}
+            ${driver.code ? `<span>🏷️ ${driver.code}</span>` : ''}
+          </div>
+          <div class="driver-stats">
+            <div class="driver-stat-card">
+              <div class="label">Driver ID</div>
+              <div class="value" style="font-size:0.85rem;">${driver.driver_id}</div>
+            </div>
+          </div>
+        </div>
+        <div class="driver-season-select">
+          <label>Season Results</label>
+          <input type="number" id="driver-season-input" placeholder="${defaultYear}" min="1950" max="2030">
+          <button class="btn-primary" onclick="loadDriverSeason('${driver.driver_id}')">Load</button>
+        </div>
+        <div id="driver-season-results"></div>
+      `;
+      container.innerHTML = html;
+
+      document.getElementById('driver-season-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') loadDriverSeason(driver.driver_id);
+      });
+    }
+
+    async function loadDriverSeason(driverId) {
+      const yearInput = document.getElementById('driver-season-input');
+      const year = parseInt(yearInput.value) || new Date().getFullYear();
+      const resultsDiv = document.getElementById('driver-season-results');
+
+      resultsDiv.innerHTML = `<div style="text-align:center;padding:1rem;"><span class="spinner"></span> Loading season…</div>`;
+
+      try {
+        const res = await fetch(`/api/drivers/${driverId}?year=${year}`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        renderDriverSeason(data, resultsDiv);
+      } catch (e) {
+        resultsDiv.innerHTML = `<div class="standings-empty"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
+      }
+    }
+
+    function renderDriverSeason(data, container) {
+      const results = data.results || [];
+      const stats = data.season_stats || {};
+
+      if (results.length === 0) {
+        container.innerHTML = `<div class="standings-empty"><div class="icon">📋</div><p>No results for ${data.season}.</p></div>`;
+        return;
+      }
+
+      let html = `
+        <div class="driver-stats" style="margin-bottom:1rem;">
+          <div class="driver-stat-card">
+            <div class="label">Races</div>
+            <div class="value">${stats.races || results.length}</div>
+          </div>
+          <div class="driver-stat-card">
+            <div class="label">Points</div>
+            <div class="value">${stats.points || 0}</div>
+          </div>
+          <div class="driver-stat-card">
+            <div class="label">Best Finish</div>
+            <div class="value">${stats.best_finish ? 'P' + stats.best_finish : '—'}</div>
+          </div>
+        </div>
+        <table class="standings-table"><thead><tr>
+          <th>Rnd</th><th>Race</th><th>Grid</th><th>Fin</th><th>Pts</th><th>Status</th>
+        </tr></thead><tbody>`;
+
+      results.forEach(r => {
+        const posClass = r.position <= 3 ? `p${r.position}` : '';
+        const posDisplay = r.position || '—';
+        const grid = r.grid || '—';
+        html += `<tr>
+          <td>${r.round}</td>
+          <td class="name">${r.race_name}</td>
+          <td>${grid}</td>
+          <td class="pos ${posClass}">${posDisplay}</td>
+          <td class="pts">${r.points}</td>
+          <td style="color:var(--text-muted);font-size:0.78rem;">${r.status}</td>
+        </tr>`;
+      });
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    // Hash routing
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#/driver/')) {
+        const driverId = hash.replace('#/driver/', '');
+        loadDriverPage(driverId);
+      } else {
+        // Clear driver page, go back to latest
+        document.getElementById('section-driver').classList.remove('visible');
+        document.getElementById('section-latest').classList.add('visible');
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-latest').classList.add('active');
+        previousView = null;
+      }
+    });
+
+    // Handle initial hash on load
+    if (window.location.hash.startsWith('#/driver/')) {
+      const driverId = window.location.hash.replace('#/driver/', '');
+      setTimeout(() => loadDriverPage(driverId), 500);
+    }
   </script>
 </body>
 </html>

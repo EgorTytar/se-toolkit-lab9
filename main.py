@@ -201,6 +201,48 @@ async def get_constructor_standings(year: int) -> dict:
 
 
 @app.get(
+    "/api/drivers/{driver_id}",
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def get_driver_info(driver_id: str, year: int = 0) -> dict:
+    """Get driver profile and optional season results.
+
+    Example: `/api/drivers/hamilton?year=2024`
+    """
+    try:
+        info = await ergast_client.get_driver_info(driver_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Failed to fetch driver info for %s: %s", driver_id, e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    result = {"driver": info}
+
+    # Optionally include season results
+    if year > 0:
+        try:
+            results = await ergast_client.get_driver_season_results(driver_id, year)
+            result["season"] = year
+            result["results"] = results
+            result["season_stats"] = {
+                "races": len(results),
+                "points": sum(r["points"] for r in results),
+                "best_finish": min(
+                    (int(r["position"]) for r in results if r["position"].isdigit()),
+                    default=None,
+                ),
+            }
+        except Exception as e:
+            logger.warning("Could not fetch season results for %s: %s", driver_id, e)
+            result["season"] = year
+            result["results"] = []
+            result["season_stats"] = {}
+
+    return result
+
+
+@app.get(
     "/api/races/{year}/{round}/results",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )

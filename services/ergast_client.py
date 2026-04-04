@@ -62,6 +62,7 @@ class ErgastClient:
         return [
             {
                 "position": int(s.get("position", 0)),
+                "driver_id": s.get("Driver", {}).get("driverId", ""),
                 "driver_code": s.get("Driver", {}).get("code", ""),
                 "driver_name": f"{s.get('Driver', {}).get('givenName', '')} {s.get('Driver', {}).get('familyName', '')}".strip(),
                 "nationality": s.get("Driver", {}).get("nationality", ""),
@@ -90,6 +91,52 @@ class ErgastClient:
             }
             for s in standings.get("ConstructorStandings", [])
         ]
+
+    async def get_driver_info(self, driver_ref: str) -> dict:
+        """Fetch basic info for a driver by their Ergast driver reference."""
+        data = await self._get(f"drivers/{driver_ref}.json")
+        try:
+            driver = data["MRData"]["DriverTable"]["Drivers"][0]
+        except (KeyError, IndexError):
+            raise ValueError(f"Driver '{driver_ref}' not found")
+
+        return {
+            "driver_id": driver.get("driverId", ""),
+            "code": driver.get("code", ""),
+            "given_name": driver.get("givenName", ""),
+            "family_name": driver.get("familyName", ""),
+            "full_name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
+            "date_of_birth": driver.get("dateOfBirth", ""),
+            "nationality": driver.get("nationality", ""),
+            "permanent_number": driver.get("permanentNumber", ""),
+            "url": driver.get("url", ""),
+        }
+
+    async def get_driver_season_results(self, driver_ref: str, year: int) -> list[dict]:
+        """Fetch all race results for a driver in a given season."""
+        data = await self._get(f"{year}/drivers/{driver_ref}/results.json")
+        try:
+            races = data["MRData"]["RaceTable"]["Races"]
+        except (KeyError, IndexError):
+            return []
+
+        results = []
+        for race in races:
+            result_entry = race.get("Results", [{}])[0]
+            if not result_entry:
+                continue
+            results.append({
+                "round": int(race.get("round", 0)),
+                "race_name": race.get("raceName", ""),
+                "circuit": race.get("Circuit", {}).get("circuitName", ""),
+                "date": race.get("date", ""),
+                "position": result_entry.get("position", ""),
+                "grid": int(result_entry.get("grid", 0)),
+                "points": float(result_entry.get("points", 0)),
+                "status": result_entry.get("status", ""),
+            })
+
+        return results
 
     @staticmethod
     def _extract_race_data(data: dict) -> dict:
