@@ -23,7 +23,6 @@ This is the single most valuable feature to end-users: they instantly get an eas
 | User value | High — fans want quick, engaging race recaps |
 | Implementation complexity | Medium — single API integration + AI summarization |
 | Demonstrable | Yes — fully functional end-to-end flow |
-| TA demo ready | Yes — clear input → output flow |
 
 ### Architecture
 
@@ -50,8 +49,101 @@ This is the single most valuable feature to end-users: they instantly get an eas
 | Backend | Python + FastAPI | Lightweight, async-friendly, easy to set up |
 | External API | Ergast Developer API | Free, no auth required, comprehensive F1 data |
 | AI Layer | OpenAI-compatible LLM prompt | Structured JSON output per specification |
-| CLI / Demo | Simple Python script or curl | Easy to demonstrate to TA |
+| CLI / Demo | Simple Python script or curl | Easy to demonstrate |
 | Package management | pip + requirements.txt | Standard Python ecosystem |
+| Containerisation | Docker + Docker Compose | Reproducible, one-command deployment |
+
+### Docker Containerisation
+
+A `Dockerfile` and `docker-compose.yml` will be added so the app runs with a single `docker compose up`.
+
+#### Dockerfile
+
+- Multi-stage build: slim Python 3.12 base image
+- Non-root user for security
+- `OPENAI_API_KEY` passed as an environment variable at runtime
+- Exposes port 8000, runs uvicorn with `--host 0.0.0.0`
+
+```dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+RUN chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+#### docker-compose.yml
+
+- Service: `f1-assistant`
+- Port mapping: `8000:8000`
+- Environment: `OPENAI_API_KEY` loaded from a `.env` file
+- Health check against `/health` endpoint
+
+```yaml
+services:
+  f1-assistant:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+```
+
+#### .dockerignore
+
+Excludes unnecessary files from the build context:
+
+```
+__pycache__/
+*.pyc
+.env
+.git/
+.vscode/
+PLAN.md
+```
+
+#### Updated project structure
+
+```
+lab9/
+├── PLAN.md                 # This file
+├── requirements.txt        # Dependencies
+├── README.md              # Setup and usage instructions
+├── config.py              # Configuration (API URLs, model settings)
+├── main.py                # FastAPI application entry point
+├── demo.py                # CLI demonstration script
+├── Dockerfile             # Container image definition
+├── docker-compose.yml     # One-command deployment
+├── .dockerignore          # Build context exclusions
+├── .env.example           # Template for environment variables
+├── services/
+│   ├── __init__.py
+│   ├── ergast_client.py   # Ergast API client
+│   ├── ai_assistant.py    # LLM prompt builder & response handler
+│   └── data_parser.py     # Raw data → structured format
+└── models/
+    └── schemas.py         # Pydantic request/response models
+```
 
 ### Data Flow
 
@@ -101,7 +193,7 @@ lab9/
 │   └── data_parser.py     # Raw data → structured format
 ├── models/
 │   └── schemas.py         # Pydantic request/response models
-└── demo.py                # CLI script for TA demonstration
+└── demo.py                # CLI demonstration script
 ```
 
 ### Implementation Steps (Version 1)
@@ -164,7 +256,14 @@ Response for both:
   - Prints formatted output to console
   - Optionally accepts a race query as argument
 
-#### Step 7: Testing & Polish
+#### Step 7: Docker Containerisation
+- Create `Dockerfile` with slim Python image, non-root user
+- Create `docker-compose.yml` with env var support and health check
+- Create `.dockerignore` to keep build context lean
+- Create `.env.example` as a template for API keys
+- Test: `docker compose up` → server responds on `localhost:8000`
+
+#### Step 8: Testing & Polish
 - Test with multiple races across different seasons
 - Verify JSON output is always valid
 - Handle edge cases (canceled races, partial data)
@@ -221,20 +320,23 @@ Version 1 +
 
 ---
 
-## Demo Script (for TA)
+## Demo Script
 
 ```
-1. Run: python demo.py latest
-   → Shows AI-generated summary of the most recent race
+Option A — Local Python:
+1. pip install -r requirements.txt
+2. uvicorn main:app --reload
+3. curl http://localhost:8000/api/races/latest
 
-2. Run: python demo.py 2024 1
-   → Shows summary of a specific race (e.g., 2024 Round 1)
+Option B — Docker (recommended):
+1. docker compose up --build
+2. curl http://localhost:8000/api/races/latest
 
-3. Show the JSON response structure
-   → Validate all required fields are present
-
-4. Demonstrate error handling
-   → Request an invalid race and show graceful error message
+Either way:
+3. python demo.py latest        → CLI summary
+4. python demo.py 2024 1        → Specific race
+5. Show JSON response structure → Validate all fields present
+6. Demonstrate error handling   → Invalid race → graceful message
 ```
 
 ---
@@ -242,16 +344,17 @@ Version 1 +
 ## Setup Instructions (for README)
 
 ```bash
-# Install dependencies
+# Option A — Local Python
 pip install -r requirements.txt
-
-# Run the FastAPI server
 uvicorn main:app --reload
-
-# Test with curl
 curl http://localhost:8000/api/races/latest
 
-# Run demo
+# Option B — Docker (one command)
+cp .env.example .env   # add OPENAI_API_KEY if desired
+docker compose up --build
+curl http://localhost:8000/api/races/latest
+
+# CLI demo
 python demo.py latest
 ```
 
@@ -263,5 +366,5 @@ python demo.py latest
 - [ ] AI generates structured JSON summary per specification
 - [ ] Response includes summary, highlights, and insights
 - [ ] Error handling works for invalid inputs
-- [ ] Demo runs without errors for TA review
+- [ ] Demo runs without errors for review
 - [ ] No hallucinated data in any response
