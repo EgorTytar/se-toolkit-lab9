@@ -97,9 +97,17 @@
     .standings-section { display: none; }
     .standings-section.visible { display: block; }
     .standings-controls {
-      display: none; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+      display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;
     }
-    .standings-controls.visible { display: flex; flex-wrap: wrap; }
+    .standings-controls label {
+      font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .standings-controls input {
+      width: 100px; padding: 0.5rem 0.75rem; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+      font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+    }
+    .standings-controls input:focus { border-color: var(--red); }
     .standings-type {
       display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
     }
@@ -279,9 +287,6 @@
 
     <!-- Latest Race Tab -->
     <div class="latest-section visible" id="section-latest">
-      <button class="btn-primary" id="btn-latest" onclick="fetchLatest()">
-        🏁 Show Latest Race
-      </button>
       <div id="latest-status" class="status"></div>
       <div id="latest-container"></div>
     </div>
@@ -302,7 +307,7 @@
 
     <!-- Standings Tab -->
     <div class="standings-section" id="section-standings">
-      <div class="standings-controls visible" id="standings-controls">
+      <div class="standings-controls" id="standings-controls">
         <label for="input-standings-year">Year</label>
         <input type="number" id="input-standings-year" placeholder="2024" min="1950" max="2030">
         <button class="btn-primary" id="btn-standings" onclick="fetchStandings()">Show Standings</button>
@@ -533,13 +538,10 @@
 
     // ── Latest race ──
     async function fetchLatest() {
-      const btn = document.getElementById('btn-latest');
-      btn.disabled = true;
-      showStatus('latest-status', 'Fetching latest race results…', 'loading');
       const container = document.getElementById('latest-container');
       container.innerHTML = '';
+      showStatus('latest-status', 'Loading…', 'loading');
       try {
-        // Use the basic results endpoint (no AI)
         const res = await fetch('/api/races/latest/results');
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
         const data = await res.json();
@@ -554,8 +556,6 @@
         hideStatus('latest-status');
       } catch (e) {
         showStatus('latest-status', 'Error: ' + e.message, 'error');
-      } finally {
-        btn.disabled = false;
       }
     }
 
@@ -720,6 +720,7 @@
     });
 
     checkHealth();
+    fetchLatest();
   </script>
 </body>
 </html>
