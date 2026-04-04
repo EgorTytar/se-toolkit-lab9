@@ -394,6 +394,12 @@
       document.getElementById('section-latest').classList.toggle('visible', tab === 'latest');
       document.getElementById('section-season-controls').classList.toggle('visible', tab === 'season');
       document.getElementById('section-standings').classList.toggle('visible', tab === 'standings');
+      document.getElementById('section-driver').classList.toggle('visible', tab === 'driver');
+      // Clear season list when leaving the tab
+      if (tab !== 'season') {
+        document.getElementById('race-list').classList.remove('visible');
+        document.getElementById('season-header').classList.remove('visible');
+      }
       if (tab === 'season') document.getElementById('input-year').focus();
       if (tab === 'standings') document.getElementById('input-standings-year').focus();
     }
