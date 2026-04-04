@@ -571,7 +571,26 @@
       showStatus('season-status', `Loading ${year} season schedule…`, 'loading');
       try {
         const res = await fetch(`/api/seasons/${year}/schedule`);
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        if (!res.ok) {
+          const e = await res.json();
+          const msg = e.detail || 'API error';
+          // Friendly messages from backend (not true errors)
+          if (msg.includes('not held before') || msg.includes('not yet available')) {
+            hideStatus('season-status');
+            document.getElementById('season-header').classList.add('visible');
+            document.getElementById('season-title').textContent = '';
+            document.getElementById('season-count').textContent = '';
+            const list = document.getElementById('race-list');
+            list.innerHTML = `<div class="standings-empty">
+              <div class="icon">📅</div>
+              <p>${msg}</p>
+            </div>`;
+            list.classList.add('visible');
+          } else {
+            throw new Error(msg);
+          }
+          return;
+        }
         const data = await res.json();
         hideStatus('season-status');
         renderSchedule(data);

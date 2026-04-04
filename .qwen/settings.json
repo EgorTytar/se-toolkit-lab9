@@ -12,7 +12,8 @@
       "Bash(ls *)",
       "Bash(cat *)",
       "Bash(ssh *)",
-      "Bash(kill *)"
+      "Bash(kill *)",
+      "Bash(sed *)"
     ]
   },
   "$version": 3

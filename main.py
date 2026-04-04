@@ -1,6 +1,7 @@
 """FastAPI application for the F1 Race Results Summarizer."""
 
 import logging
+import datetime
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -95,8 +96,12 @@ async def get_season_schedule(year: int) -> dict:
 
     Example: `/api/seasons/2024/schedule`
     """
-    if year < 1950 or year > 2030:
-        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+    current_year = datetime.datetime.now().year
+
+    if year < 1950:
+        raise HTTPException(status_code=404, detail="The Formula 1 World Championship was not held before 1950.")
+    if year > current_year:
+        raise HTTPException(status_code=404, detail=f"The {year} season schedule is not yet available.")
 
     try:
         schedule = await ergast_client.get_season_schedule(year)
@@ -118,7 +123,6 @@ async def get_driver_standings(year: int) -> dict:
 
     Example: `/api/standings/drivers?year=2024`
     """
-    import datetime
     current_year = datetime.datetime.now().year
 
     if year < 1950:
@@ -162,7 +166,6 @@ async def get_constructor_standings(year: int) -> dict:
 
     Example: `/api/standings/constructors?year=2024`
     """
-    import datetime
     current_year = datetime.datetime.now().year
 
     if year < 1950:
@@ -207,8 +210,12 @@ async def get_race_results(year: int, round: int) -> dict:
     If the race hasn't happened yet, returns a preview with schedule info.
     Example: `/api/races/2024/1/results`
     """
-    if year < 1950 or year > 2030:
-        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+    current_year = datetime.datetime.now().year
+
+    if year < 1950:
+        raise HTTPException(status_code=400, detail="The Formula 1 World Championship was not held before 1950.")
+    if year > current_year:
+        raise HTTPException(status_code=400, detail=f"The {year} season has not started yet.")
     if round < 1 or round > 30:
         raise HTTPException(status_code=400, detail="Round must be between 1 and 30")
 
@@ -270,8 +277,12 @@ async def get_race_summary(
     For future races (no results), generates a race preview instead.
     Example: `/api/races/2024/1` for the first race of 2024.
     """
-    if year < 1950 or year > 2030:
-        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+    current_year = datetime.datetime.now().year
+
+    if year < 1950:
+        raise HTTPException(status_code=400, detail="The Formula 1 World Championship was not held before 1950.")
+    if year > current_year:
+        raise HTTPException(status_code=400, detail=f"The {year} season has not started yet.")
     if round < 1 or round > 30:
         raise HTTPException(status_code=400, detail="Round must be between 1 and 30")
 
