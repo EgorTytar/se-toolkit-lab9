@@ -51,6 +51,46 @@ class ErgastClient:
             for r in races
         ]
 
+    async def get_driver_standings(self, year: int) -> list[dict]:
+        """Fetch driver championship standings for a season."""
+        data = await self._get(f"{year}/driverStandings.json")
+        try:
+            standings = data["MRData"]["StandingsTable"]["StandingsLists"][0]
+        except (KeyError, IndexError):
+            raise ValueError(f"No driver standings found for season {year}")
+
+        return [
+            {
+                "position": int(s.get("position", 0)),
+                "driver_code": s.get("Driver", {}).get("code", ""),
+                "driver_name": f"{s.get('Driver', {}).get('givenName', '')} {s.get('Driver', {}).get('familyName', '')}".strip(),
+                "nationality": s.get("Driver", {}).get("nationality", ""),
+                "constructor": s.get("Constructors", [{}])[0].get("name", "Unknown"),
+                "points": float(s.get("points", 0)),
+                "wins": int(s.get("wins", 0)),
+            }
+            for s in standings.get("DriverStandings", [])
+        ]
+
+    async def get_constructor_standings(self, year: int) -> list[dict]:
+        """Fetch constructor championship standings for a season."""
+        data = await self._get(f"{year}/constructorStandings.json")
+        try:
+            standings = data["MRData"]["StandingsTable"]["StandingsLists"][0]
+        except (KeyError, IndexError):
+            raise ValueError(f"No constructor standings found for season {year}")
+
+        return [
+            {
+                "position": int(s.get("position", 0)),
+                "constructor": s.get("Constructor", {}).get("name", "Unknown"),
+                "nationality": s.get("Constructor", {}).get("nationality", ""),
+                "points": float(s.get("points", 0)),
+                "wins": int(s.get("wins", 0)),
+            }
+            for s in standings.get("ConstructorStandings", [])
+        ]
+
     @staticmethod
     def _extract_race_data(data: dict) -> dict:
         """Extract and structure race information from the raw API response."""

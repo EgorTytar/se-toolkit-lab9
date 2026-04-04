@@ -93,6 +93,50 @@
     }
     .year-select input:focus { border-color: var(--red); }
 
+    /* Standings tables */
+    .standings-section { display: none; }
+    .standings-section.visible { display: block; }
+    .standings-controls {
+      display: none; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .standings-controls.visible { display: flex; flex-wrap: wrap; }
+    .standings-type {
+      display: flex; gap: 0.5rem; margin-bottom: 1.5rem;
+    }
+    .type-btn {
+      padding: 0.4rem 1rem; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface); color: var(--text-muted); font-size: 0.8rem;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .type-btn:hover { background: var(--surface-hover); color: var(--text); }
+    .type-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+    .standings-table {
+      width: 100%; border-collapse: collapse; font-size: 0.85rem;
+    }
+    .standings-table th {
+      text-align: left; padding: 0.5rem 0.75rem; font-size: 0.7rem;
+      text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .standings-table td {
+      padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border);
+    }
+    .standings-table tr:last-child td { border-bottom: none; }
+    .standings-table .pos { font-weight: 700; width: 40px; }
+    .standings-table .pos.p1 { color: var(--gold); }
+    .standings-table .pos.p2 { color: var(--silver); }
+    .standings-table .pos.p3 { color: var(--bronze); }
+    .standings-table .name { font-weight: 600; }
+    .standings-table .team { color: var(--text-muted); font-size: 0.78rem; }
+    .standings-table .pts { font-weight: 700; text-align: right; }
+    .standings-table .wins { text-align: center; color: var(--text-muted); font-size: 0.8rem; }
+
+    .standings-empty {
+      text-align: center; padding: 2rem; color: var(--text-muted);
+    }
+    .standings-empty .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+
     /* Status */
     .status {
       padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem;
@@ -230,6 +274,7 @@
     <div class="tabs">
       <button class="tab active" onclick="switchTab('latest')" id="tab-latest">Latest Race</button>
       <button class="tab" onclick="switchTab('season')" id="tab-season">Browse Seasons</button>
+      <button class="tab" onclick="switchTab('standings')" id="tab-standings">Standings</button>
     </div>
 
     <!-- Latest Race Tab -->
@@ -255,6 +300,21 @@
     </div>
     <div class="race-list" id="race-list"></div>
 
+    <!-- Standings Tab -->
+    <div class="standings-section" id="section-standings">
+      <div class="standings-controls visible" id="standings-controls">
+        <label for="input-standings-year">Year</label>
+        <input type="number" id="input-standings-year" placeholder="2024" min="1950" max="2030">
+        <button class="btn-primary" id="btn-standings" onclick="fetchStandings()">Show Standings</button>
+      </div>
+      <div id="standings-status" class="status"></div>
+      <div class="standings-type" id="standings-type-toggle" style="display:none">
+        <button class="type-btn active" onclick="showStandingsType('drivers')">Drivers</button>
+        <button class="type-btn" onclick="showStandingsType('constructors')">Constructors</button>
+      </div>
+      <div id="standings-content"></div>
+    </div>
+
     <footer>
       Data from <a href="https://api.jolpi.ca/ergast/f1/" target="_blank">Jolpica-F1</a>
       · AI by <a href="https://qwen.ai" target="_blank">Qwen</a>
@@ -264,12 +324,18 @@
 
   <script>
     // ── Tab switching ──
+    let currentStandingsYear = null;
+    let currentStandingsType = 'drivers';
+
     function switchTab(tab) {
       document.getElementById('tab-latest').classList.toggle('active', tab === 'latest');
       document.getElementById('tab-season').classList.toggle('active', tab === 'season');
+      document.getElementById('tab-standings').classList.toggle('active', tab === 'standings');
       document.getElementById('section-latest').classList.toggle('visible', tab === 'latest');
       document.getElementById('section-season-controls').classList.toggle('visible', tab === 'season');
+      document.getElementById('section-standings').classList.toggle('visible', tab === 'standings');
       if (tab === 'season') document.getElementById('input-year').focus();
+      if (tab === 'standings') document.getElementById('input-standings-year').focus();
     }
 
     // ── Status helpers ──
@@ -535,6 +601,101 @@
       list.classList.add('visible');
     }
 
+    // ── Standings ──
+    function showStandingsType(type) {
+      currentStandingsType = type;
+      document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      if (currentStandingsYear) fetchStandingsData(currentStandingsYear, type);
+    }
+
+    async function fetchStandings() {
+      const year = parseInt(document.getElementById('input-standings-year').value);
+      if (!year) { showStatus('standings-status', 'Please enter a year.', 'error'); return; }
+
+      currentStandingsYear = year;
+      const btn = document.getElementById('btn-standings');
+      btn.disabled = true;
+      document.getElementById('standings-content').innerHTML = '';
+      document.getElementById('standings-type-toggle').style.display = 'none';
+      showStatus('standings-status', `Loading ${year} standings…`, 'loading');
+      try {
+        await fetchStandingsData(year, currentStandingsType);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function fetchStandingsData(year, type) {
+      const endpoint = type === 'drivers' ? 'drivers' : 'constructors';
+      try {
+        const res = await fetch(`/api/standings/${endpoint}?year=${year}`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+
+        hideStatus('standings-status');
+
+        // Future year — show message instead of table
+        if (data.message) {
+          document.getElementById('standings-type-toggle').style.display = 'none';
+          document.getElementById('standings-content').innerHTML = `
+            <div class="standings-empty">
+              <div class="icon">📅</div>
+              <p>${data.message}</p>
+              <p style="font-size:0.8rem;margin-top:0.5rem;">Standings will be available when the season begins.</p>
+            </div>`;
+          return;
+        }
+
+        document.getElementById('standings-type-toggle').style.display = 'flex';
+        renderStandings(data);
+      } catch (e) {
+        showStatus('standings-status', 'Error: ' + e.message, 'error');
+      }
+    }
+
+    function renderStandings(data) {
+      const standings = data.standings || [];
+      const year = data.season;
+
+      if (standings.length === 0) {
+        document.getElementById('standings-content').innerHTML = `
+          <div class="standings-empty">
+            <div class="icon">📋</div>
+            <p>No standings data available for ${year}.</p>
+          </div>`;
+        return;
+      }
+
+      let html = `<h3 style="margin-bottom:1rem;font-size:1.1rem;">${data.type === 'drivers' ? 'Driver' : 'Constructor'} Championship ${year}</h3>`;
+      html += '<table class="standings-table"><thead><tr>';
+      html += '<th>#</th>';
+      html += `<th>${data.type === 'drivers' ? 'Driver' : 'Team'}</th>`;
+      if (data.type === 'drivers') html += '<th class="team">Team</th>';
+      html += '<th class="wins">W</th>';
+      html += '<th class="pts">Pts</th>';
+      html += '</tr></thead><tbody>';
+
+      standings.forEach(s => {
+        const posClass = s.position <= 3 ? `p${s.position}` : '';
+        html += '<tr>';
+        html += `<td class="pos ${posClass}">${s.position}</td>`;
+        if (data.type === 'drivers') {
+          html += `<td class="name">${s.driver_name}</td>`;
+          html += `<td class="team">${s.constructor}</td>`;
+        } else {
+          html += `<td class="name">${s.constructor}</td>`;
+          html += '<td></td>';
+        }
+        html += `<td class="wins">${s.wins}</td>`;
+        html += `<td class="pts">${s.points}</td>`;
+        html += '</tr>';
+      });
+
+      html += '</tbody></table>';
+      document.getElementById('standings-content').innerHTML = html;
+    }
+
     // ── Init ──
     async function checkHealth() {
       try {
@@ -553,6 +714,9 @@
 
     document.getElementById('input-year').addEventListener('keydown', e => {
       if (e.key === 'Enter') fetchSeason();
+    });
+    document.getElementById('input-standings-year').addEventListener('keydown', e => {
+      if (e.key === 'Enter') fetchStandings();
     });
 
     checkHealth();

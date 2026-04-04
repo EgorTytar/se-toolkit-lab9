@@ -110,6 +110,70 @@ async def get_season_schedule(year: int) -> dict:
 
 
 @app.get(
+    "/api/standings/drivers",
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def get_driver_standings(year: int) -> dict:
+    """Driver championship standings for a given year.
+
+    Example: `/api/standings/drivers?year=2024`
+    """
+    if year < 1950 or year > 2030:
+        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+
+    current_year = 2026  # matches current F1 season
+    if year > current_year:
+        return {
+            "season": year,
+            "type": "drivers",
+            "standings": [],
+            "message": f"The {year} season has not started yet.",
+        }
+
+    try:
+        standings = await ergast_client.get_driver_standings(year)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Failed to fetch driver standings for %s: %s", year, e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    return {"season": year, "type": "drivers", "standings": standings}
+
+
+@app.get(
+    "/api/standings/constructors",
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def get_constructor_standings(year: int) -> dict:
+    """Constructor championship standings for a given year.
+
+    Example: `/api/standings/constructors?year=2024`
+    """
+    if year < 1950 or year > 2030:
+        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+
+    current_year = 2026  # matches current F1 season
+    if year > current_year:
+        return {
+            "season": year,
+            "type": "constructors",
+            "standings": [],
+            "message": f"The {year} season has not started yet.",
+        }
+
+    try:
+        standings = await ergast_client.get_constructor_standings(year)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Failed to fetch constructor standings for %s: %s", year, e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    return {"season": year, "type": "constructors", "standings": standings}
+
+
+@app.get(
     "/api/races/{year}/{round}/results",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
