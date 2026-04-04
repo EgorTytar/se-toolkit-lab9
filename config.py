@@ -1,5 +1,6 @@
-# Ergast API base URL
-ERGAST_BASE_URL = "http://ergast.com/api/f1"
+# Ergast API base URL — Jolpica-F1 is the official Ergast replacement
+# Ergast (ergast.com) was deprecated end of 2024
+ERGAST_BASE_URL = "https://api.jolpi.ca/ergast/f1"
 
 # Default request timeout (seconds)
 ERGAST_TIMEOUT = 10.0

@@ -109,7 +109,7 @@ python demo.py 2024 1 "Who won the race?"
 
 ## Data Source
 
-All race data comes from the [Ergast Developer API](http://ergast.com/mrd/) — free, no authentication required.
+All race data comes from the **Jolpica-F1 API** (`api.jolpi.ca`) — a community-maintained, fully compatible mirror of the legacy Ergast F1 API. The original Ergast API was deprecated at the end of the 2024 season.
 
 ## Version 1 Scope
 

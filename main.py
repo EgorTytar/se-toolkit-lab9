@@ -30,6 +30,20 @@ ergast_client = ErgastClient()
 ai_summarizer = AISummarizer()
 
 
+@app.get("/")
+async def root() -> dict:
+    """Root endpoint — points to API docs."""
+    return {
+        "service": "F1 Race Results Summarizer",
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "latest_race": "/api/races/latest",
+            "specific_race": "/api/races/{year}/{round}",
+        },
+    }
+
+
 @app.get("/health")
 async def health_check() -> dict:
     """Health check endpoint."""
