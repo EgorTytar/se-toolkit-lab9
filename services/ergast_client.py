@@ -33,6 +33,24 @@ class ErgastClient:
         data = await self._get(f"{year}/{round}/results.json")
         return self._extract_race_data(data)
 
+    async def get_season_schedule(self, year: int) -> list[dict]:
+        """Fetch the schedule for a full season (all races)."""
+        data = await self._get(f"{year}.json")
+        try:
+            races = data["MRData"]["RaceTable"]["Races"]
+        except (KeyError, IndexError):
+            raise ValueError(f"No schedule data found for season {year}")
+
+        return [
+            {
+                "round": int(r.get("round", 0)),
+                "race_name": r.get("raceName", "Unknown"),
+                "circuit": r.get("Circuit", {}).get("circuitName", "Unknown"),
+                "date": r.get("date", "Unknown"),
+            }
+            for r in races
+        ]
+
     @staticmethod
     def _extract_race_data(data: dict) -> dict:
         """Extract and structure race information from the raw API response."""

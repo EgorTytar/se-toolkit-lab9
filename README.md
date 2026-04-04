@@ -10,6 +10,7 @@ AI-powered Formula 1 race summaries using real data from the Ergast API.
 - Graceful fallback when no AI API key is configured
 - RESTful API via FastAPI
 - CLI demo script for easy demonstration
+- **Web UI** — clean dark-themed dashboard at `http://localhost:8000/`
 
 ## Quick Start
 
@@ -38,6 +39,12 @@ uvicorn main:app --reload
 ```
 
 Server starts at `http://localhost:8000`.
+
+### 4. Open the Web UI
+
+Navigate to **`http://localhost:8000`** in your browser — the F1 dashboard is ready to use.
+
+The API docs are available at **`http://localhost:8000/docs`**.
 
 ## API Endpoints
 
@@ -79,6 +86,14 @@ curl http://localhost:8000/api/races/latest
 }
 ```
 
+## Web UI
+
+The built-in dashboard provides:
+- **Latest Race** button — fetch and summarize with one click
+- **Year + Round** inputs — query any historical race
+- Visual podium display (🥇🥈🥉)
+- AI summary, highlights, and insights cards
+
 ## CLI Demo
 
 Run the demo script to see race summaries in your terminal:
@@ -97,14 +112,17 @@ python demo.py 2024 1 "Who won the race?"
 ## Project Structure
 
 ```
+lab9/
 ├── config.py                  # Configuration constants
 ├── main.py                    # FastAPI application
 ├── demo.py                    # CLI demo script
 ├── requirements.txt           # Python dependencies
+├── static/
+│   └── index.html             # Web UI dashboard
 ├── services/
 │   ├── ergast_client.py       # Ergast API client
 │   ├── data_parser.py         # Data → prompt formatter
-│   └── ai_assistant.py        # LLM summarizer
+│   └── ai_assistant.py        # Qwen LLM summarizer
 └── models/
     └── schemas.py             # Pydantic models
 ```

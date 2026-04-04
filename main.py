@@ -4,6 +4,8 @@ import logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from models.schemas import AIResponse, ErrorResponse, RaceSummaryResponse
 from services.ai_assistant import AISummarizer
@@ -26,22 +28,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve static files (frontend UI)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 ergast_client = ErgastClient()
 ai_summarizer = AISummarizer()
 
 
 @app.get("/")
-async def root() -> dict:
-    """Root endpoint — points to API docs."""
-    return {
-        "service": "F1 Race Results Summarizer",
-        "docs": "/docs",
-        "health": "/health",
-        "endpoints": {
-            "latest_race": "/api/races/latest",
-            "specific_race": "/api/races/{year}/{round}",
-        },
-    }
+async def root() -> FileResponse:
+    """Serve the frontend UI."""
+    return FileResponse("static/index.html")
 
 
 @app.get("/health")
@@ -75,6 +72,104 @@ async def get_latest_race_summary(user_query: str = "") -> RaceSummaryResponse:
 
 
 @app.get(
+    "/api/races/latest/results",
+    responses={500: {"model": ErrorResponse}},
+)
+async def get_latest_race_results() -> dict:
+    """Return basic results for the most recent race (no AI)."""
+    try:
+        race_data = await ergast_client.get_latest_race()
+    except Exception as e:
+        logger.error("Failed to fetch latest race: %s", e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    return _build_basic_results(race_data)
+
+
+@app.get(
+    "/api/seasons/{year}/schedule",
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def get_season_schedule(year: int) -> dict:
+    """Return the race schedule for a given season year.
+
+    Example: `/api/seasons/2024/schedule`
+    """
+    if year < 1950 or year > 2030:
+        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+
+    try:
+        schedule = await ergast_client.get_season_schedule(year)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        logger.error("Failed to fetch schedule for %s: %s", year, e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    return {"season": year, "race_count": len(schedule), "races": schedule}
+
+
+@app.get(
+    "/api/races/{year}/{round}/results",
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def get_race_results(year: int, round: int) -> dict:
+    """Return basic race results without AI summary.
+
+    If the race hasn't happened yet, returns a preview with schedule info.
+    Example: `/api/races/2024/1/results`
+    """
+    if year < 1950 or year > 2030:
+        raise HTTPException(status_code=400, detail="Year must be between 1950 and 2030")
+    if round < 1 or round > 30:
+        raise HTTPException(status_code=400, detail="Round must be between 1 and 30")
+
+    try:
+        race_data = await ergast_client.get_race_by_year_round(year, round)
+    except ValueError:
+        # Race entry might not exist yet (future race) — try schedule
+        return await _try_schedule_preview(year, round)
+    except Exception as e:
+        logger.error("Failed to fetch race %s/%s: %s", year, round, e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    return _build_basic_results(race_data)
+
+
+async def _try_schedule_preview(year: int, round: int) -> dict:
+    """Try to fetch race info from the season schedule for future races."""
+    try:
+        schedule = await ergast_client.get_season_schedule(year)
+        race_info = next((r for r in schedule if r["round"] == round), None)
+        if race_info:
+            return {
+                "race_name": race_info["race_name"],
+                "circuit": race_info["circuit"],
+                "date": race_info["date"],
+                "season": year,
+                "round": round,
+                "total_drivers": 0,
+                "winner": None,
+                "podium": [],
+                "is_future_race": True,
+            }
+    except Exception as e:
+        logger.warning("Could not fetch schedule for preview: %s", e)
+
+    return {
+        "race_name": f"Round {round}",
+        "circuit": "Unknown",
+        "date": "Unknown",
+        "season": year,
+        "round": round,
+        "total_drivers": 0,
+        "winner": None,
+        "podium": [],
+        "is_future_race": True,
+    }
+
+
+@app.get(
     "/api/races/{year}/{round}",
     response_model=RaceSummaryResponse,
     responses={500: {"model": ErrorResponse}},
@@ -84,6 +179,7 @@ async def get_race_summary(
 ) -> RaceSummaryResponse:
     """Summarize a specific Formula 1 race by year and round number.
 
+    For future races (no results), generates a race preview instead.
     Example: `/api/races/2024/1` for the first race of 2024.
     """
     if year < 1950 or year > 2030:
@@ -93,13 +189,54 @@ async def get_race_summary(
 
     try:
         race_data = await ergast_client.get_race_by_year_round(year, round)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError:
+        # Future race — get info from schedule and generate a preview
+        return await _build_future_race_preview(year, round, user_query)
     except Exception as e:
         logger.error("Failed to fetch race %s/%s: %s", year, round, e)
         raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
 
     return await _build_response(race_data, user_query)
+
+
+async def _build_future_race_preview(year: int, round: int, user_query: str) -> RaceSummaryResponse:
+    """Generate a preview for a race that hasn't happened yet."""
+    try:
+        schedule = await ergast_client.get_season_schedule(year)
+        race_info = next((r for r in schedule if r["round"] == round), None)
+        if race_info:
+            preview_text = (
+                f"Upcoming Race: {race_info['race_name']}\n"
+                f"Circuit: {race_info['circuit']}\n"
+                f"Date: {race_info['date']}\n\n"
+                f"This race has not taken place yet. "
+                f"Check back after {race_info['date']} for results and analysis."
+            )
+            result = await ai_summarizer.summarize(preview_text, user_query)
+            return RaceSummaryResponse(
+                race_name=race_info["race_name"],
+                circuit=race_info["circuit"],
+                date=race_info["date"],
+                season=str(year),
+                round=round,
+                ai_response=AIResponse(**result),
+            )
+    except Exception as e:
+        logger.warning("Could not generate preview for %s/%s: %s", year, round, e)
+
+    return RaceSummaryResponse(
+        race_name=f"Round {round}",
+        circuit="Unknown",
+        date="TBD",
+        season=str(year),
+        round=round,
+        ai_response=AIResponse(
+            summary=f"Race data for round {round} of {year} is not yet available.",
+            highlights="No results — this race has not taken place yet.",
+            insights="Results will appear here once the race weekend is completed.",
+            answer="",
+        ),
+    )
 
 
 async def _build_response(race_data: dict, user_query: str) -> RaceSummaryResponse:
@@ -115,3 +252,35 @@ async def _build_response(race_data: dict, user_query: str) -> RaceSummaryRespon
         round=race_data["round"],
         ai_response=AIResponse(**ai_result),
     )
+
+
+def _build_basic_results(race_data: dict) -> dict:
+    """Extract basic race results without AI summary."""
+    results = race_data.get("results", [])
+    top3 = results[:3]
+    winner = top3[0] if len(top3) > 0 else None
+
+    return {
+        "race_name": race_data["race_name"],
+        "circuit": race_data["circuit"],
+        "date": race_data["date"],
+        "season": race_data["season"],
+        "round": race_data["round"],
+        "total_drivers": len(results),
+        "winner": {
+            "name": winner["driver_name"],
+            "constructor": winner["constructor"],
+            "points": winner["points"],
+        }
+        if winner
+        else None,
+        "podium": [
+            {
+                "position": p["position"],
+                "name": p["driver_name"],
+                "constructor": p["constructor"],
+                "points": p["points"],
+            }
+            for p in top3
+        ],
+    }

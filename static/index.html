@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F1 Race Assistant</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏎️</text></svg>">
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface-hover: #242424;
+      --border: #2a2a2a;
+      --border-light: #333;
+      --text: #e8e8e8;
+      --text-muted: #888;
+      --red: #e10600;
+      --red-hover: #ff1a14;
+      --green: #00d46b;
+      --orange: #ff8c00;
+      --gold: #ffd700;
+      --silver: #c0c0c0;
+      --bronze: #cd7f32;
+      --blue: #4a9eff;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* Header */
+    header {
+      display: flex; align-items: center; gap: 0.75rem;
+      margin-bottom: 2rem; padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .logo { font-size: 1.8rem; }
+    .ai-badge {
+      margin-left: auto; font-size: 0.7rem; padding: 0.2rem 0.6rem;
+      border-radius: 20px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .ai-badge.on { background: #0a2e1a; color: var(--green); border: 1px solid #1a4a2a; }
+    .ai-badge.off { background: #2e1a1a; color: #de7b7b; border: 1px solid #4e2a2a; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .tab {
+      padding: 0.5rem 1.25rem; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); color: var(--text-muted); font-size: 0.85rem;
+      font-weight: 600; cursor: pointer; transition: all 0.2s;
+    }
+    .tab:hover { background: var(--surface-hover); color: var(--text); }
+    .tab.active { background: var(--red); color: #fff; border-color: var(--red); }
+
+    /* Buttons */
+    .btn-primary {
+      padding: 0.6rem 1.5rem; border: none; border-radius: 8px;
+      background: var(--red); color: #fff; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--red-hover); }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { background: #555; cursor: not-allowed; }
+
+    .btn-ai {
+      padding: 0.45rem 0.9rem; border: 1px solid var(--blue); border-radius: 8px;
+      background: transparent; color: var(--blue); font-size: 0.78rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.35rem;
+    }
+    .btn-ai:hover:not(:disabled) { background: var(--blue); color: #fff; }
+    .btn-ai:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Year selector */
+    .year-select {
+      display: none; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+    }
+    .year-select.visible { display: flex; flex-wrap: wrap; }
+    .year-select label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .year-select input {
+      width: 100px; padding: 0.5rem 0.75rem; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+      font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+    }
+    .year-select input:focus { border-color: var(--red); }
+
+    /* Status */
+    .status {
+      padding: 0.75rem 1rem; border-radius: 8px; font-size: 0.85rem;
+      margin-bottom: 1rem; display: none;
+    }
+    .status.loading { display: block; background: #1a1a2e; color: #7b8cde; border: 1px solid #2a2a4e; }
+    .status.error { display: block; background: #2e1a1a; color: #de7b7b; border: 1px solid #4e2a2a; }
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(123,140,222,0.3); border-top-color: #7b8cde;
+      border-radius: 50%; animation: spin 0.6s linear infinite;
+      vertical-align: middle; margin-right: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Latest section */
+    .latest-section { display: none; }
+    .latest-section.visible { display: block; }
+
+    /* Race list */
+    .race-list { display: none; flex-direction: column; gap: 0.35rem; }
+    .race-list.visible { display: flex; }
+    .season-header {
+      display: none; margin-bottom: 1rem;
+    }
+    .season-header.visible { display: block; }
+    .season-header h2 { font-size: 1.25rem; font-weight: 700; }
+    .season-header span { color: var(--text-muted); font-size: 0.85rem; }
+
+    .race-item {
+      padding: 0.75rem 1rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; gap: 0.75rem;
+    }
+    .race-item:hover { background: var(--surface-hover); border-color: var(--border-light); }
+    .race-item.selected { border-color: var(--blue); background: #0f1a2e; }
+    .race-item .round {
+      width: 32px; height: 32px; border-radius: 50%; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; color: var(--text-muted); flex-shrink: 0;
+    }
+    .race-item .info { flex: 1; }
+    .race-item .info .name { font-size: 0.9rem; font-weight: 600; }
+    .race-item .info .meta { font-size: 0.75rem; color: var(--text-muted); }
+    .race-item .arrow { color: var(--text-muted); font-size: 0.8rem; transition: transform 0.25s; }
+    .race-item.expanded .arrow { transform: rotate(90deg); }
+
+    /* Inline race detail — slides right under the race item */
+    .race-detail {
+      max-height: 0; overflow: hidden; opacity: 0;
+      padding: 0 1rem; margin: 0 0 0 0.5rem;
+      border-left: 2px solid var(--blue);
+      background: var(--surface);
+      transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.3s ease;
+    }
+    .race-detail.open {
+      max-height: 2000px; opacity: 1;
+      padding: 1rem;
+    }
+
+    .race-detail h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .race-detail .meta { display: flex; gap: 1rem; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; flex-wrap: wrap; }
+    .race-detail .meta span { display: flex; align-items: center; gap: 0.25rem; }
+
+    /* Podium cards */
+    .podium-card {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .podium-card-item {
+      padding: 0.5rem; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; text-align: center;
+    }
+    .podium-card-item .pos { font-size: 1.2rem; font-weight: 800; }
+    .podium-card-item .pos.gold { color: var(--gold); }
+    .podium-card-item .pos.silver { color: var(--silver); }
+    .podium-card-item .pos.bronze { color: var(--bronze); }
+    .podium-card-item .driver { font-size: 0.72rem; margin-top: 0.15rem; }
+    .podium-card-item .team { font-size: 0.63rem; color: var(--text-muted); }
+
+    .race-detail .action-bar {
+      display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0;
+      border-top: 1px solid var(--border); margin-top: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* AI response */
+    .ai-response {
+      max-height: 0; overflow: hidden; opacity: 0;
+      transition: max-height 0.35s ease, opacity 0.25s ease;
+    }
+    .ai-response.visible { max-height: 2000px; opacity: 1; }
+
+    .ai-section {
+      padding: 0.6rem 0; border-top: 1px solid var(--border);
+    }
+    .ai-section:first-child { border-top: none; padding-top: 0; }
+    .ai-section h4 {
+      font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-muted); margin-bottom: 0.4rem;
+      display: flex; align-items: center; gap: 0.4rem;
+    }
+    .ai-section h4 .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .ai-section h4 .dot.red { background: var(--red); }
+    .ai-section h4 .dot.green { background: var(--green); }
+    .ai-section h4 .dot.orange { background: var(--orange); }
+    .ai-section p { font-size: 0.9rem; line-height: 1.7; }
+
+    /* Footer */
+    footer {
+      margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border);
+      text-align: center; font-size: 0.75rem; color: var(--text-muted);
+    }
+    footer a { color: var(--red); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .container { padding: 1.25rem 1rem; }
+      .podium-card { grid-template-columns: 1fr; }
+      .tabs { flex-wrap: wrap; }
+      .year-select { flex-direction: column; align-items: stretch; }
+      .race-detail { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="logo">🏎️</span>
+      <h1>F1 Race Assistant</h1>
+      <span id="ai-badge" class="ai-badge off">AI</span>
+    </header>
+
+    <!-- Tab navigation -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('latest')" id="tab-latest">Latest Race</button>
+      <button class="tab" onclick="switchTab('season')" id="tab-season">Browse Seasons</button>
+    </div>
+
+    <!-- Latest Race Tab -->
+    <div class="latest-section visible" id="section-latest">
+      <button class="btn-primary" id="btn-latest" onclick="fetchLatest()">
+        🏁 Show Latest Race
+      </button>
+      <div id="latest-status" class="status"></div>
+      <div id="latest-container"></div>
+    </div>
+
+    <!-- Season Browse Tab -->
+    <div class="year-select" id="section-season-controls">
+      <label for="input-year">Season Year</label>
+      <input type="number" id="input-year" placeholder="2024" min="1950" max="2030">
+      <button class="btn-primary" id="btn-season" onclick="fetchSeason()">Show Races</button>
+    </div>
+
+    <div id="season-status" class="status"></div>
+    <div class="season-header" id="season-header">
+      <h2 id="season-title"></h2>
+      <span id="season-count"></span>
+    </div>
+    <div class="race-list" id="race-list"></div>
+
+    <footer>
+      Data from <a href="https://api.jolpi.ca/ergast/f1/" target="_blank">Jolpica-F1</a>
+      · AI by <a href="https://qwen.ai" target="_blank">Qwen</a>
+      · <a href="/docs" target="_blank">API Docs</a>
+    </footer>
+  </div>
+
+  <script>
+    // ── Tab switching ──
+    function switchTab(tab) {
+      document.getElementById('tab-latest').classList.toggle('active', tab === 'latest');
+      document.getElementById('tab-season').classList.toggle('active', tab === 'season');
+      document.getElementById('section-latest').classList.toggle('visible', tab === 'latest');
+      document.getElementById('section-season-controls').classList.toggle('visible', tab === 'season');
+      if (tab === 'season') document.getElementById('input-year').focus();
+    }
+
+    // ── Status helpers ──
+    function showStatus(id, msg, type) {
+      const el = document.getElementById(id);
+      el.className = 'status ' + type;
+      el.innerHTML = type === 'loading' ? `<span class="spinner"></span>${msg}` : msg;
+    }
+    function hideStatus(id) { document.getElementById(id).className = 'status'; }
+
+    // ── Render podium cards ──
+    function renderPodium(podium) {
+      if (!podium || podium.length < 3) return '';
+      const medals = ['gold', 'silver', 'bronze'];
+      let html = '<div class="podium-card">';
+      podium.slice(0, 3).forEach((p, i) => {
+        html += `<div class="podium-card-item">
+          <div class="pos ${medals[i]}">${p.position}</div>
+          <div class="driver">${p.name}</div>
+          <div class="team">${p.constructor}</div>
+        </div>`;
+      });
+      html += '</div>';
+      return html;
+    }
+
+    // ── Render AI response ──
+    function renderAIResponse(ai) {
+      let html = '';
+      if (ai.summary) {
+        html += `<div class="ai-section">
+          <h4><span class="dot red"></span> Race Summary</h4>
+          <p>${ai.summary}</p>
+        </div>`;
+      }
+      if (ai.highlights) {
+        html += `<div class="ai-section">
+          <h4><span class="dot green"></span> Highlights</h4>
+          <p>${ai.highlights}</p>
+        </div>`;
+      }
+      if (ai.insights) {
+        html += `<div class="ai-section">
+          <h4><span class="dot orange"></span> Insights</h4>
+          <p>${ai.insights}</p>
+        </div>`;
+      }
+      if (ai.answer) {
+        html += `<div class="ai-section">
+          <h4><span class="dot green"></span> Answer</h4>
+          <p>${ai.answer}</p>
+        </div>`;
+      }
+      return html || '<p style="color:var(--text-muted)">No analysis available.</p>';
+    }
+
+    // ── Build inline race detail ──
+    function buildRaceDetail(year, round, data) {
+      const id = `detail-${year}-${round}`;
+      const aiId = `ai-${year}-${round}`;
+      const podium = data.podium || [];
+      const btnId = `btn-ai-${year}-${round}`;
+      const isFuture = data.is_future_race;
+
+      const detail = document.createElement('div');
+      detail.className = 'race-detail';
+      detail.id = id;
+
+      if (isFuture) {
+        detail.innerHTML = `
+          <h3>${data.race_name}</h3>
+          <div class="meta">
+            <span>📍 ${data.circuit}</span>
+            <span>📅 ${data.date}</span>
+            <span>🏁 Round ${round}</span>
+          </div>
+          <div style="padding:0.75rem 0;border-top:1px solid var(--border);margin-top:0.5rem;">
+            <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.7;">
+              This race has not taken place yet. Results and analysis will be available after the race weekend.
+            </p>
+          </div>
+          <div class="action-bar">
+            <button class="btn-ai" id="${btnId}" onclick="askAI(${year}, ${round})">
+              🤖 Ask AI
+            </button>
+            <span style="font-size:0.72rem;color:var(--text-muted)">Preview this upcoming race</span>
+          </div>
+          <div class="ai-response" id="${aiId}"></div>
+        `;
+      } else {
+        detail.innerHTML = `
+          <h3>${data.race_name}</h3>
+          <div class="meta">
+            <span>📍 ${data.circuit}</span>
+            <span>📅 ${data.date}</span>
+            <span>🏁 Round ${round}</span>
+            ${data.total_drivers ? `<span>👥 ${data.total_drivers} drivers</span>` : ''}
+          </div>
+          ${podium.length > 0 ? renderPodium(podium) : ''}
+          <div class="action-bar">
+            <button class="btn-ai" id="${btnId}" onclick="askAI(${year}, ${round})">
+              🤖 Ask AI
+            </button>
+            <span style="font-size:0.72rem;color:var(--text-muted)">Get a detailed AI summary</span>
+          </div>
+          <div class="ai-response" id="${aiId}"></div>
+        `;
+      }
+
+      return detail;
+    }
+
+    // ── Toggle inline detail ──
+    function toggleDetail(year, round, el) {
+      const detail = document.getElementById(`detail-${year}-${round}`);
+      const item = document.getElementById(`race-item-${year}-${round}`);
+      const wasOpen = detail && detail.classList.contains('open');
+
+      // Close all open details
+      document.querySelectorAll('.race-detail.open').forEach(d => d.classList.remove('open'));
+      document.querySelectorAll('.race-item.expanded').forEach(i => {
+        i.classList.remove('expanded', 'selected');
+      });
+
+      if (!wasOpen) {
+        // Create detail if it doesn't exist
+        if (!detail) {
+          selectRace(year, round, el);
+        } else {
+          detail.classList.add('open');
+          item.classList.add('expanded', 'selected');
+        }
+      }
+    }
+
+    // ── Select race → load basic info ──
+    async function selectRace(year, round, el) {
+      const item = document.getElementById(`race-item-${year}-${round}`);
+      if (!item) return;
+
+      item.classList.add('expanded', 'selected');
+
+      // Insert detail element right after the race item
+      const detail = buildRaceDetail(year, round, {
+        race_name: 'Loading...', circuit: '', date: '',
+        total_drivers: 0, podium: [], winner: null,
+      });
+      item.after(detail);
+
+      // Trigger animation next frame
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          detail.classList.add('open');
+        });
+      });
+
+      try {
+        const res = await fetch(`/api/races/${year}/${round}/results`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        const newDetail = buildRaceDetail(year, round, data);
+        detail.replaceWith(newDetail);
+        requestAnimationFrame(() => newDetail.classList.add('open'));
+      } catch (e) {
+        detail.innerHTML = `<p style="padding:0.5rem 0;color:#de7b7b">Error: ${e.message}</p>`;
+        detail.classList.add('open');
+      }
+    }
+
+    // ── Ask AI ──
+    async function askAI(year, round) {
+      const aiDiv = document.getElementById(`ai-${year}-${round}`);
+      const btn = document.getElementById(`btn-ai-${year}-${round}`);
+      if (!aiDiv || !btn) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Analyzing…';
+      aiDiv.innerHTML = `<div style="padding:0.75rem 0;color:var(--text-muted);text-align:center;">
+        <span class="spinner"></span> Qwen is analyzing the race…
+      </div>`;
+      aiDiv.classList.add('visible');
+
+      try {
+        const res = await fetch(`/api/races/${year}/${round}`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        aiDiv.innerHTML = renderAIResponse(data.ai_response);
+      } catch (e) {
+        aiDiv.innerHTML = `<p style="padding:0.5rem 0;color:#de7b7b">Error: ${e.message}</p>`;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '🤖 Ask AI';
+      }
+    }
+
+    // ── Latest race ──
+    async function fetchLatest() {
+      const btn = document.getElementById('btn-latest');
+      btn.disabled = true;
+      showStatus('latest-status', 'Fetching latest race results…', 'loading');
+      const container = document.getElementById('latest-container');
+      container.innerHTML = '';
+      try {
+        // Use the basic results endpoint (no AI)
+        const res = await fetch('/api/races/latest/results');
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+
+        const season = parseInt(data.season);
+        const round = data.round;
+
+        const detail = buildRaceDetail(season, round, data);
+        container.appendChild(detail);
+        requestAnimationFrame(() => detail.classList.add('open'));
+
+        hideStatus('latest-status');
+      } catch (e) {
+        showStatus('latest-status', 'Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // ── Season schedule ──
+    async function fetchSeason() {
+      const year = document.getElementById('input-year').value;
+      if (!year) { showStatus('season-status', 'Please enter a year.', 'error'); return; }
+
+      const btn = document.getElementById('btn-season');
+      btn.disabled = true;
+      document.getElementById('race-list').classList.remove('visible');
+      document.getElementById('season-header').classList.remove('visible');
+      showStatus('season-status', `Loading ${year} season schedule…`, 'loading');
+      try {
+        const res = await fetch(`/api/seasons/${year}/schedule`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        hideStatus('season-status');
+        renderSchedule(data);
+      } catch (e) {
+        showStatus('season-status', 'Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function renderSchedule(data) {
+      document.getElementById('season-title').textContent = data.season + ' Season';
+      document.getElementById('season-count').textContent = data.race_count + ' races';
+      document.getElementById('season-header').classList.add('visible');
+
+      const list = document.getElementById('race-list');
+      list.innerHTML = data.races.map(r =>
+        `<div class="race-item" onclick="toggleDetail(${data.season}, ${r.round}, this)" id="race-item-${data.season}-${r.round}">
+          <div class="round">${r.round}</div>
+          <div class="info">
+            <div class="name">${r.race_name}</div>
+            <div class="meta">${r.circuit} · ${r.date}</div>
+          </div>
+          <div class="arrow">▶</div>
+        </div>`
+      ).join('');
+      list.classList.add('visible');
+    }
+
+    // ── Init ──
+    async function checkHealth() {
+      try {
+        const res = await fetch('/health');
+        const data = await res.json();
+        const badge = document.getElementById('ai-badge');
+        if (data.ai_available) {
+          badge.className = 'ai-badge on';
+          badge.textContent = 'Qwen AI';
+        } else {
+          badge.className = 'ai-badge off';
+          badge.textContent = 'No AI';
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('input-year').addEventListener('keydown', e => {
+      if (e.key === 'Enter') fetchSeason();
+    });
+
+    checkHealth();
+  </script>
+</body>
+</html>

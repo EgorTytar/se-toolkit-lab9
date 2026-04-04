@@ -50,6 +50,7 @@ This is the single most valuable feature to end-users: they instantly get an eas
 | External API | Jolpica-F1 (Ergast-compatible) | Free, no auth required, official Ergast replacement |
 | AI Layer | Qwen (via DashScope) | Structured JSON output, cost-effective |
 | CLI / Demo | Simple Python script or curl | Easy to demonstrate |
+| Web UI | Single-page HTML dashboard | No build needed, works instantly |
 | Package management | pip + requirements.txt | Standard Python ecosystem |
 | Containerisation | Docker + Docker Compose | Reproducible, one-command deployment |
 
@@ -136,6 +137,8 @@ lab9/
 ├── docker-compose.yml     # One-command deployment
 ├── .dockerignore          # Build context exclusions
 ├── .env.example           # Template for environment variables
+├── static/
+│   └── index.html         # Web UI dashboard
 ├── services/
 │   ├── __init__.py
 │   ├── ergast_client.py   # Ergast API client
