@@ -19,13 +19,15 @@ AI-powered Formula 1 race summaries using real data from the Ergast API.
 pip install -r requirements.txt
 ```
 
-### 2. (Optional) Set your OpenAI API key
+### 2. (Optional) Set your DashScope API key
 
-For full AI-generated summaries, set your API key:
+For full AI-generated summaries using Qwen, set your DashScope API key:
 
 ```bash
-export OPENAI_API_KEY="sk-..."
+export DASHSCOPE_API_KEY="sk-..."
 ```
+
+You can get a key at [DashScope Console](https://dashscope.console.aliyun.com/apiKey).
 
 Without a key the app still runs — it returns a basic fallback summary.
 

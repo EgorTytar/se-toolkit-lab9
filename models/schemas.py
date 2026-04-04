@@ -1,6 +1,8 @@
 """Pydantic request/response models for the API."""
 
-from pydantic import BaseModel
+from typing import Optional
+
+from pydantic import BaseModel, field_validator
 
 
 class AIResponse(BaseModel):
@@ -10,6 +12,14 @@ class AIResponse(BaseModel):
     highlights: str = ""
     insights: str = ""
     answer: str = ""
+
+    @field_validator("summary", "highlights", "insights", "answer", mode="before")
+    @classmethod
+    def convert_none_to_empty_string(cls, v):
+        """Some LLMs return null instead of empty string."""
+        if v is None:
+            return ""
+        return v
 
 
 class RaceSummaryResponse(BaseModel):

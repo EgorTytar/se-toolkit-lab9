@@ -48,7 +48,7 @@ This is the single most valuable feature to end-users: they instantly get an eas
 |-----------|------------|--------|
 | Backend | Python + FastAPI | Lightweight, async-friendly, easy to set up |
 | External API | Jolpica-F1 (Ergast-compatible) | Free, no auth required, official Ergast replacement |
-| AI Layer | OpenAI-compatible LLM prompt | Structured JSON output per specification |
+| AI Layer | Qwen (via DashScope) | Structured JSON output, cost-effective |
 | CLI / Demo | Simple Python script or curl | Easy to demonstrate |
 | Package management | pip + requirements.txt | Standard Python ecosystem |
 | Containerisation | Docker + Docker Compose | Reproducible, one-command deployment |
@@ -61,7 +61,7 @@ A `Dockerfile` and `docker-compose.yml` will be added so the app runs with a sin
 
 - Multi-stage build: slim Python 3.12 base image
 - Non-root user for security
-- `OPENAI_API_KEY` passed as an environment variable at runtime
+- `DASHSCOPE_API_KEY` passed as an environment variable at runtime
 - Exposes port 8000, runs uvicorn with `--host 0.0.0.0`
 
 ```dockerfile
@@ -88,7 +88,7 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 - Service: `f1-assistant`
 - Port mapping: `8000:8000`
-- Environment: `OPENAI_API_KEY` loaded from a `.env` file
+- Environment: `DASHSCOPE_API_KEY` loaded from a `.env` file
 - Health check against `/health` endpoint
 
 ```yaml
@@ -100,7 +100,7 @@ services:
     env_file:
       - .env
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -352,7 +352,7 @@ uvicorn main:app --reload
 curl http://localhost:8000/api/races/latest
 
 # Option B — Docker (one command)
-cp .env.example .env   # add OPENAI_API_KEY if desired
+cp .env.example .env   # add DASHSCOPE_API_KEY if desired
 docker compose up --build
 curl http://localhost:8000/api/races/latest
 
