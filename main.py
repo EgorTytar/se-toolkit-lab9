@@ -132,8 +132,13 @@ async def get_driver_standings(year: int) -> dict:
 
     try:
         standings = await ergast_client.get_driver_standings(year)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError:
+        return {
+            "season": year,
+            "type": "drivers",
+            "standings": [],
+            "message": "No driver standings available for this season.",
+        }
     except Exception as e:
         logger.error("Failed to fetch driver standings for %s: %s", year, e)
         raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
@@ -164,8 +169,13 @@ async def get_constructor_standings(year: int) -> dict:
 
     try:
         standings = await ergast_client.get_constructor_standings(year)
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
+    except ValueError:
+        return {
+            "season": year,
+            "type": "constructors",
+            "standings": [],
+            "message": "The constructors championship was not held in this season.",
+        }
     except Exception as e:
         logger.error("Failed to fetch constructor standings for %s: %s", year, e)
         raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e

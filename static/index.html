@@ -635,14 +635,13 @@
 
         hideStatus('standings-status');
 
-        // Future year — show message instead of table
+        // Future year or championship not held — show message instead of table
         if (data.message) {
           document.getElementById('standings-type-toggle').style.display = 'none';
           document.getElementById('standings-content').innerHTML = `
             <div class="standings-empty">
               <div class="icon">📅</div>
               <p>${data.message}</p>
-              <p style="font-size:0.8rem;margin-top:0.5rem;">Standings will be available when the season begins.</p>
             </div>`;
           return;
         }
