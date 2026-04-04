@@ -1,12 +1,11 @@
-"""AI-powered race summarizer using an OpenAI-compatible LLM."""
+"""AI-powered race summarizer using Qwen via Qwen Code API."""
 
 import json
 import logging
-import os
 
 from openai import AsyncOpenAI
 
-from config import AI_MAX_TOKENS, AI_MODEL, AI_TEMPERATURE
+from config import AI_MAX_TOKENS, AI_TEMPERATURE, QWEN_API_KEY, QWEN_BASE_URL, QWEN_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +44,17 @@ ALWAYS respond in valid JSON format with these exact keys:
 
 
 class AISummarizer:
-    """Generates race summaries using an OpenAI-compatible LLM."""
+    """Generates race summaries using Qwen via DashScope."""
 
     def __init__(self) -> None:
-        api_key = os.environ.get("OPENAI_API_KEY", "")
-        self.client = AsyncOpenAI(api_key=api_key)
-        self.model = AI_MODEL
+        self.client = AsyncOpenAI(
+            api_key=QWEN_API_KEY,
+            base_url=QWEN_BASE_URL,
+        )
+        self.model = QWEN_MODEL
         self.temperature = AI_TEMPERATURE
         self.max_tokens = AI_MAX_TOKENS
-        self._available = bool(api_key)
+        self._available = bool(QWEN_API_KEY)
 
     @property
     def is_available(self) -> bool:
@@ -117,6 +118,6 @@ class AISummarizer:
         return {
             "summary": f"Race results for the {race_name} are in. {winner} took the top spot.",
             "highlights": podium_text,
-            "insights": "AI summarization unavailable — connect OPENAI_API_KEY for full summaries.",
+            "insights": "AI summarization unavailable — Qwen API key not configured.",
             "answer": "",
         }

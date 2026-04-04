@@ -50,6 +50,7 @@ async def health_check() -> dict:
     return {
         "status": "ok",
         "ai_available": ai_summarizer.is_available,
+        "ai_model": "qwen",
     }
 
 

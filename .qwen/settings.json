@@ -7,7 +7,12 @@
       "Bash(docker compose *)",
       "Bash(curl *)",
       "Bash(python3 *)",
-      "Bash(sleep *)"
+      "Bash(sleep *)",
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(ssh *)",
+      "Bash(kill *)"
     ]
   },
   "$version": 3
