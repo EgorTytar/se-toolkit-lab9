@@ -88,20 +88,22 @@
     /* Reminders UI */
     .reminders-section { display: none; }
     .reminders-section.visible { display: block; }
-    .reminder-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; }
-    .reminder-item {
+    .reminders-list { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1.5rem; }
+    .rem-race-item {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.6rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      font-size: 0.85rem;
     }
-    .reminder-info { font-size: 0.85rem; }
-    .reminder-form {
-      display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end;
-      padding: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    .rem-race-info { flex: 1; }
+    .rem-race-info .race-name { font-weight: 600; }
+    .rem-race-info .race-meta { color: var(--text-muted); font-size: 0.75rem; }
+    .rem-toggle {
+      padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: 4px;
+      background: transparent; color: var(--text-muted); font-size: 0.75rem;
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
     }
-    .reminder-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.75rem; color: var(--text-muted); }
-    .reminder-form input { padding: 0.4rem 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text); width: 100px; }
-    .btn-danger { background: #8b0000; color: white; padding: 0.3rem 0.6rem; border: none; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
-    .btn-danger:hover { background: #a00000; }
+    .rem-toggle.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .rem-toggle:hover:not(.active) { background: var(--surface-hover); }
 
     /* Tabs */
     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
@@ -463,21 +465,17 @@
     <!-- Reminders Tab -->
     <div class="reminders-section" id="section-reminders">
       <div id="reminders-status" class="status"></div>
-      <div id="reminders-content">
-        <div id="reminders-locked" style="display:none" class="standings-empty">
-          <div class="icon">🔒</div>
-          <p>Please <a href="#" onclick="switchTab('auth'); return false;">login</a> to manage reminders.</p>
-        </div>
-        <div id="reminders-list-container" style="display:none">
-          <div id="reminders-list" class="reminder-list"></div>
-          <h3 style="margin: 1.5rem 0 0.75rem;">New Reminder</h3>
-          <form class="reminder-form" onsubmit="createReminder(event)">
-            <label>Year <input type="number" id="rem-year" placeholder="2024" min="2024" max="2030" required></label>
-            <label>Round <input type="number" id="rem-round" placeholder="1" min="1" max="25" required></label>
-            <label>Notify (hours before) <input type="number" id="rem-hours" placeholder="24" min="1" max="168" value="24" required></label>
-            <button class="btn-primary" type="submit">Add Reminder</button>
-          </form>
-        </div>
+      <div id="reminders-locked" style="display:none" class="standings-empty">
+        <div class="icon">🔒</div>
+        <p>Please <a href="#" onclick="switchTab('auth'); return false;">login</a> to set race reminders.</p>
+      </div>
+      <div id="reminders-upcoming" style="display:none">
+        <h3 style="margin-bottom:0.75rem;">Upcoming Races — <span id="rem-season-label">2024</span></h3>
+        <div id="rem-races-list" class="reminders-list"></div>
+      </div>
+      <div id="rem-no-races" style="display:none" class="standings-empty">
+        <div class="icon">🏁</div>
+        <p>All races for this season have been completed.</p>
       </div>
     </div>
 
@@ -1049,21 +1047,27 @@
       }
       // Update Reminders locked state
       const locked = document.getElementById('reminders-locked');
-      const list = document.getElementById('reminders-list-container');
-      if (locked && list) {
-        locked.style.display = currentUser ? 'none' : 'block';
-        list.style.display = currentUser ? 'block' : 'none';
+      const upcoming = document.getElementById('reminders-upcoming');
+      const noRaces = document.getElementById('rem-no-races');
+      if (locked) {
+        if (currentUser) {
+          locked.style.display = 'none';
+        } else {
+          locked.style.display = 'block';
+          if (upcoming) upcoming.style.display = 'none';
+          if (noRaces) noRaces.style.display = 'none';
+        }
       }
     }
 
     function doLogout() {
       clearToken(); currentUser = null; currentDriverId = null; isDriverFav = false;
+      upcomingRaces = []; reminderIdsByRound = {};
       document.getElementById('auth-guest').style.display = '';
       document.getElementById('auth-logged-in').style.display = 'none';
       document.getElementById('driver-fav-btn').textContent = '';
       document.getElementById('driver-fav-btn').style.display = 'none';
-      // Reset reminders
-      const remList = document.getElementById('reminders-list');
+      const remList = document.getElementById('rem-races-list');
       if (remList) remList.innerHTML = '';
       showAuthStatus('Logged out.', 'loading');
       updateHeader();
@@ -1116,6 +1120,9 @@
     }
 
     // ── Reminders ──
+    let upcomingRaces = [];
+    let reminderIdsByRound = {};
+
     function showRemindersStatus(msg, type) {
       const el = document.getElementById('reminders-status');
       el.className = 'status ' + type;
@@ -1125,69 +1132,93 @@
 
     async function loadRemindersTab() {
       const locked = document.getElementById('reminders-locked');
-      const list = document.getElementById('reminders-list-container');
-      if (!getToken()) {
+      const upcoming = document.getElementById('reminders-upcoming');
+      const noRaces = document.getElementById('rem-no-races');
+      const token = getToken();
+
+      if (!token) {
         locked.style.display = 'block';
-        list.style.display = 'none';
+        upcoming.style.display = 'none';
+        noRaces.style.display = 'none';
         return;
       }
       locked.style.display = 'none';
-      list.style.display = 'block';
-      await fetchReminders();
-    }
 
-    async function fetchReminders() {
-      const container = document.getElementById('reminders-list');
+      showRemindersStatus('Loading upcoming races…', 'loading');
+
+      // Fetch current season schedule
+      const currentYear = new Date().getFullYear();
       try {
-        const res = await authFetch('/api/reminders/');
-        if (!res.ok) throw new Error('Failed to fetch');
-        const data = await res.json();
-        if (data.length === 0) {
-          container.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-muted)">No reminders set.</div>';
-        } else {
-          container.innerHTML = data.map(r => `
-            <div class="reminder-item">
-              <div class="reminder-info">
-                <strong>Round ${r.race_round} (${r.race_year})</strong><br>
-                <span style="color:var(--text-muted)">Notify ${r.notify_before_hours}h before via ${r.method}</span>
-              </div>
-              <button class="btn-danger" onclick="deleteReminder(${r.id})">Delete</button>
-            </div>
-          `).join('');
+        const schedRes = await fetch(`/api/seasons/${currentYear}/schedule`);
+        if (!schedRes.ok) throw new Error('Could not load schedule');
+        const schedData = await schedRes.json();
+        upcomingRaces = schedData.races.filter(r => new Date(r.date) >= new Date());
+
+        document.getElementById('rem-season-label').textContent = currentYear;
+
+        if (upcomingRaces.length === 0) {
+          upcoming.style.display = 'none';
+          noRaces.style.display = 'block';
+          hideStatus('reminders-status');
+          return;
         }
-      } catch (e) {
-        container.innerHTML = '<div style="text-align:center;color:#de7b7b">Error loading reminders.</div>';
-      }
-    }
+        noRaces.style.display = 'none';
+        upcoming.style.display = 'block';
 
-    async function createReminder(e) {
-      e.preventDefault();
-      const year = document.getElementById('rem-year').value;
-      const round = document.getElementById('rem-round').value;
-      const hours = document.getElementById('rem-hours').value;
-      try {
-        const res = await authFetch(`/api/reminders/?race_round=${round}&race_year=${year}&notify_before_hours=${hours}`, {
-          method: 'POST'
+        // Fetch existing reminders
+        const remRes = await authFetch('/api/reminders/');
+        const existing = remRes.ok ? await remRes.json() : [];
+        reminderIdsByRound = {};
+        existing.forEach(r => {
+          if (r.race_year === currentYear) {
+            reminderIdsByRound[r.race_round] = r.id;
+          }
         });
-        if (!res.ok) { const err = await res.json(); throw new Error(err.detail || 'Failed'); }
-        // Reset form
-        document.getElementById('rem-year').value = '';
-        document.getElementById('rem-round').value = '';
-        document.getElementById('rem-hours').value = '24';
-        await fetchReminders();
+
+        renderUpcomingRaces();
+        hideStatus('reminders-status');
       } catch (e) {
         showRemindersStatus('Error: ' + e.message, 'error');
       }
     }
 
-    async function deleteReminder(id) {
-      try {
-        const res = await authFetch(`/api/reminders/${id}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Failed');
-        await fetchReminders();
-      } catch (e) {
-        showRemindersStatus('Error: ' + e.message, 'error');
+    function renderUpcomingRaces() {
+      const container = document.getElementById('rem-races-list');
+      container.innerHTML = upcomingRaces.map(race => {
+        const hasReminder = reminderIdsByRound[race.round] !== undefined;
+        const btnClass = hasReminder ? 'rem-toggle active' : 'rem-toggle';
+        const btnText = hasReminder ? '✓ Reminding' : 'Set Reminder';
+        return `<div class="rem-race-item">
+          <div class="rem-race-info">
+            <div class="race-name">R${race.round} — ${race.race_name}</div>
+            <div class="race-meta">${race.circuit} · ${race.date}</div>
+          </div>
+          <button class="${btnClass}" onclick="toggleReminder(${race.round})">${btnText}</button>
+        </div>`;
+      }).join('');
+    }
+
+    async function toggleReminder(round) {
+      if (reminderIdsByRound[round] !== undefined) {
+        // Remove reminder
+        const id = reminderIdsByRound[round];
+        try {
+          const res = await authFetch(`/api/reminders/${id}`, { method: 'DELETE' });
+          if (!res.ok) throw new Error('Failed to remove');
+          delete reminderIdsByRound[round];
+        } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
+      } else {
+        // Add reminder
+        const race = upcomingRaces.find(r => r.round === round);
+        if (!race) return;
+        try {
+          const res = await authFetch(`/api/reminders/?race_round=${round}&race_year=${new Date().getFullYear()}&notify_before_hours=24`, { method: 'POST' });
+          if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Failed'); }
+          const data = await res.json();
+          reminderIdsByRound[round] = data.id;
+        } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
       }
+      renderUpcomingRaces();
     }
 
     // ── Driver pages ──
