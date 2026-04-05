@@ -147,9 +147,8 @@
 
     /* Year selector */
     .year-select {
-      display: none; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
     }
-    .year-select.visible { display: flex; flex-wrap: wrap; }
     .year-select label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .year-select input {
       width: 100px; padding: 0.5rem 0.75rem; background: var(--surface);
@@ -557,6 +556,11 @@
           break;
         case 'season':
           document.getElementById('section-season').classList.add('visible');
+          // Ensure inner elements are visible if they have content
+          const header = document.getElementById('season-header');
+          const list = document.getElementById('race-list');
+          if (header && header.textContent.trim()) header.classList.add('visible');
+          if (list && list.innerHTML.trim()) list.classList.add('visible');
           document.getElementById('input-year').focus();
           break;
         case 'standings':
