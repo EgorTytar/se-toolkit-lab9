@@ -55,6 +55,8 @@
     /* Auth UI */
     .auth-section { display: none; }
     .auth-section.visible { display: block; }
+    .season-section { display: none; }
+    .season-section.visible { display: block; }
     .auth-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
     .auth-card {
       padding: 1.5rem; background: var(--surface); border: 1px solid var(--border);
@@ -408,18 +410,20 @@
     </div>
 
     <!-- Season Browse Tab -->
-    <div class="year-select" id="section-season-controls">
-      <label for="input-year">Season Year</label>
-      <input type="number" id="input-year" placeholder="2024" min="1950" max="2030">
-      <button class="btn-primary" id="btn-season" onclick="fetchSeason()">Show Races</button>
-    </div>
+    <div class="season-section" id="section-season">
+      <div class="year-select" id="section-season-controls">
+        <label for="input-year">Season Year</label>
+        <input type="number" id="input-year" placeholder="2024" min="1950" max="2030">
+        <button class="btn-primary" id="btn-season" onclick="fetchSeason()">Show Races</button>
+      </div>
 
-    <div id="season-status" class="status"></div>
-    <div class="season-header" id="season-header">
-      <h2 id="season-title"></h2>
-      <span id="season-count"></span>
+      <div id="season-status" class="status"></div>
+      <div class="season-header" id="season-header">
+        <h2 id="season-title"></h2>
+        <span id="season-count"></span>
+      </div>
+      <div class="race-list" id="race-list"></div>
     </div>
-    <div class="race-list" id="race-list"></div>
 
     <!-- Standings Tab -->
     <div class="standings-section" id="section-standings">
@@ -531,12 +535,14 @@
     function switchTab(tab) {
       // Hide all sections first
       document.getElementById('section-latest').classList.remove('visible');
-      document.getElementById('section-season-controls').classList.remove('visible');
+      document.getElementById('section-season').classList.remove('visible');
       document.getElementById('section-standings').classList.remove('visible');
       document.getElementById('section-reminders').classList.remove('visible');
       document.getElementById('section-auth').classList.remove('visible');
       document.getElementById('section-driver').classList.remove('visible');
       document.getElementById('section-circuit').classList.remove('visible');
+      // Clear open race details
+      document.querySelectorAll('.race-detail.open').forEach(d => d.classList.remove('open'));
       // Deactivate all tabs
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
 
@@ -550,7 +556,7 @@
           fetchLatest();
           break;
         case 'season':
-          document.getElementById('section-season-controls').classList.add('visible');
+          document.getElementById('section-season').classList.add('visible');
           document.getElementById('input-year').focus();
           break;
         case 'standings':
@@ -1443,7 +1449,7 @@
     async function loadCircuitPage(circuitId) {
       // Hide all other sections
       document.getElementById('section-latest').classList.remove('visible');
-      document.getElementById('section-season-controls').classList.remove('visible');
+      document.getElementById('section-season').classList.remove('visible');
       document.getElementById('section-standings').classList.remove('visible');
       document.getElementById('section-reminders').classList.remove('visible');
       document.getElementById('section-auth').classList.remove('visible');
@@ -1518,7 +1524,7 @@
 
       // Hide all other sections
       document.getElementById('section-latest').classList.remove('visible');
-      document.getElementById('section-season-controls').classList.remove('visible');
+      document.getElementById('section-season').classList.remove('visible');
       document.getElementById('section-standings').classList.remove('visible');
       document.getElementById('season-header').classList.remove('visible');
       document.getElementById('race-list').classList.remove('visible');
