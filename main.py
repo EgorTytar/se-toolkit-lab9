@@ -14,6 +14,8 @@ from services.ai_assistant import AISummarizer
 from services.ergast_client import ErgastClient
 from services.data_parser import format_race_data
 from db.database import init_db, close_db
+from endpoints.auth import router as auth_router
+from endpoints.users import router as users_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -48,6 +50,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include auth and user profile routers
+app.include_router(auth_router)
+app.include_router(users_router)
 
 # Serve static files (frontend UI)
 app.mount("/static", StaticFiles(directory="static"), name="static")
