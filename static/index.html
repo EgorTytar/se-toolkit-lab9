@@ -638,6 +638,10 @@
       const podium = data.podium || [];
       const btnId = `btn-ai-${year}-${round}`;
       const isFuture = data.is_future_race;
+      const cId = data.circuit_id || '';
+      const circuitHtml = cId
+        ? `<span class="driver-link" onclick="goToCircuit('${cId}')">${data.circuit}</span>`
+        : data.circuit;
 
       const detail = document.createElement('div');
       detail.className = 'race-detail';
@@ -647,7 +651,7 @@
         detail.innerHTML = `
           <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
-            <span>📍 ${data.circuit}</span>
+            <span>📍 ${circuitHtml}</span>
             <span>📅 ${data.date}</span>
             <span>🏁 Round ${round}</span>
           </div>
@@ -668,7 +672,7 @@
         detail.innerHTML = `
           <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
-            <span>📍 ${data.circuit}</span>
+            <span>📍 ${circuitHtml}</span>
             <span>📅 ${data.date}</span>
             <span>🏁 Round ${round}</span>
             ${data.total_drivers ? `<span>👥 ${data.total_drivers} drivers</span>` : ''}

@@ -467,6 +467,7 @@ def _build_basic_results(race_data: dict) -> dict:
     return {
         "race_name": race_data["race_name"],
         "circuit": race_data["circuit"],
+        "circuit_id": race_data.get("circuit_id", ""),
         "date": race_data["date"],
         "season": race_data["season"],
         "round": race_data["round"],

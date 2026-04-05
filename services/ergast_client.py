@@ -238,6 +238,7 @@ class ErgastClient:
             "round": int(race_table.get("round", 0)),
             "race_name": race_table.get("raceName", "Unknown"),
             "circuit": race_table.get("Circuit", {}).get("circuitName", "Unknown"),
+            "circuit_id": race_table.get("Circuit", {}).get("circuitId", ""),
             "location": race_table.get("Circuit", {}).get("Location", {}),
             "date": race_table.get("date", "Unknown"),
             "time": race_table.get("time", ""),
