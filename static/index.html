@@ -1080,9 +1080,10 @@
         if (drivers.length === 0) {
           container.textContent = 'No favorite drivers yet. Click 🤍 on a driver page to add one.';
         } else {
-          container.innerHTML = drivers.map(f =>
-            `<span class="driver-link" style="margin-right:0.75rem;cursor:pointer;" onclick="openDriver('${f.driver_id}')">${f.driver_id}</span>`
-          ).join('');
+          container.innerHTML = drivers.map(f => {
+            const formatted = f.driver_id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            return `<span class="driver-link" style="margin-right:0.75rem;cursor:pointer;" onclick="openDriver('${f.driver_id}')">${formatted}</span>`;
+          }).join('');
         }
       } catch (e) { container.textContent = 'Error loading favorites.'; }
     }
@@ -1357,13 +1358,12 @@
     // ── Driver pages ──
     let previousView = null;
 
-    function openDriver(driverId) {
+    async function openDriver(driverId) {
       previousView = {
         tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
         standingsYear: currentStandingsYear,
       };
-      window.location.hash = `#/driver/${driverId}`;
-      loadDriverPage(driverId);
+      await loadDriverPage(driverId);
     }
 
     function goBack() {
@@ -1617,27 +1617,6 @@
       container.innerHTML = html;
     }
 
-    // Hash routing
-    window.addEventListener('hashchange', () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/driver/')) {
-        const driverId = hash.replace('#/driver/', '');
-        loadDriverPage(driverId);
-      } else {
-        // Clear driver page, go back to latest
-        document.getElementById('section-driver').classList.remove('visible');
-        document.getElementById('section-latest').classList.add('visible');
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById('tab-latest').classList.add('active');
-        previousView = null;
-      }
-    });
-
-    // Handle initial hash on load
-    if (window.location.hash.startsWith('#/driver/')) {
-      const driverId = window.location.hash.replace('#/driver/', '');
-      setTimeout(() => loadDriverPage(driverId), 500);
-    }
   </script>
 </body>
 </html>
