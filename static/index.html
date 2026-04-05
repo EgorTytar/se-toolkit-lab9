@@ -1204,16 +1204,34 @@
         const id = reminderIdsByRound[round];
         try {
           const res = await authFetch(`/api/reminders/${id}`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Failed to remove');
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const msg = typeof err.detail === 'string' ? err.detail : 'Failed to remove reminder';
+            throw new Error(msg);
+          }
           delete reminderIdsByRound[round];
         } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
       } else {
-        // Add reminder
+        // Add reminder — send as JSON body, not query params
         const race = upcomingRaces.find(r => r.round === round);
         if (!race) return;
         try {
-          const res = await authFetch(`/api/reminders/?race_round=${round}&race_year=${new Date().getFullYear()}&notify_before_hours=24`, { method: 'POST' });
-          if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Failed'); }
+          const currentYear = new Date().getFullYear();
+          const res = await authFetch('/api/reminders/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              race_round: round,
+              race_year: currentYear,
+              notify_before_hours: 24,
+              method: 'email'
+            })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const msg = typeof err.detail === 'string' ? err.detail : (Array.isArray(err.detail) ? err.detail[0]?.msg || 'Validation error' : 'Failed to set reminder');
+            throw new Error(msg);
+          }
           const data = await res.json();
           reminderIdsByRound[round] = data.id;
         } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
