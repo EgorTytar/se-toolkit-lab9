@@ -9,3 +9,6 @@ respx==0.22.0
 sqlalchemy==2.0.36
 asyncpg==0.30.0
 alembic==1.14.0
+python-jose==3.4.0
+passlib==1.7.4
+bcrypt==4.3.0
