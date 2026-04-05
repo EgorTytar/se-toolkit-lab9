@@ -73,6 +73,13 @@ async def check_and_notify() -> None:
                 hours_until = (race_date - now).total_seconds() / 3600
 
                 if 0 <= hours_until <= reminder.notify_before_hours:
+                    # Calculate relative time for the email
+                    if hours_until >= 24:
+                        days = int(hours_until // 24)
+                        time_desc = f"{days} day{'s' if days != 1 else ''}"
+                    else:
+                        time_desc = f"{int(hours_until)} hour{'s' if hours_until != 1 else ''}"
+
                     # Get user email
                     user_result = await db.execute(
                         select(User).where(User.id == reminder.user_id)
@@ -82,9 +89,8 @@ async def check_and_notify() -> None:
                         subject = f"🏎️ Reminder: {race_data['race_name']}"
                         body = (
                             f"Hi {user.display_name},\n\n"
-                            f"The {race_data['race_name']} is coming up!\n"
-                            f"Circuit: {race_data['circuit']}\n"
-                            f"Date: {race_data['date']}\n\n"
+                            f"The {race_data['race_name']} starts in about {time_desc}!\n"
+                            f"Circuit: {race_data['circuit']}\n\n"
                             f"See you at the track!"
                         )
                         _send_email(user.email, subject, body)

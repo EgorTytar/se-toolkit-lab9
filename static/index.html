@@ -459,6 +459,16 @@
             <button class="btn-logout" onclick="doLogout()">Logout</button>
           </div>
         </div>
+        <!-- Favorites Section -->
+        <div style="margin-top:1.5rem;">
+          <h3 style="margin-bottom:0.75rem;">Favorite Drivers</h3>
+          <div id="account-fav-list" style="color:var(--text-muted);font-size:0.85rem;">Loading…</div>
+        </div>
+        <!-- Reminders Section -->
+        <div style="margin-top:1.5rem;">
+          <h3 style="margin-bottom:0.75rem;">Your Reminders</h3>
+          <div id="account-rem-list" style="color:var(--text-muted);font-size:0.85rem;">Loading…</div>
+        </div>
       </div>
     </div>
 
@@ -1028,7 +1038,72 @@
         document.getElementById('auth-logged-in').style.display = 'block';
         document.getElementById('auth-status').className = 'status';
         updateHeader();
+        // Load account sections
+        loadAccountFavorites();
+        loadAccountReminders();
       } catch (e) { clearToken(); updateHeader(); }
+    }
+
+    async function loadAccountFavorites() {
+      const container = document.getElementById('account-fav-list');
+      if (!container) return;
+      try {
+        const res = await authFetch('/api/users/me/favorites');
+        if (!res.ok) { container.textContent = 'Error loading favorites.'; return; }
+        const favs = await res.json();
+        const drivers = favs.filter(f => f.driver_id);
+        if (drivers.length === 0) {
+          container.textContent = 'No favorite drivers yet. Click 🤍 on a driver page to add one.';
+        } else {
+          container.innerHTML = drivers.map(f =>
+            `<span class="driver-link" style="margin-right:0.75rem;">${f.driver_id}</span>`
+          ).join('');
+        }
+      } catch (e) { container.textContent = 'Error loading favorites.'; }
+    }
+
+    function formatTimeUntil(dateStr) {
+      const now = new Date();
+      const target = new Date(dateStr);
+      const diffMs = target - now;
+      if (diffMs <= 0) return 'Starting now';
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const days = Math.floor(hours / 24);
+      if (days > 0) return `in ${days}d ${hours % 24}h`;
+      return `in ${hours}h`;
+    }
+
+    async function loadAccountReminders() {
+      const container = document.getElementById('account-rem-list');
+      if (!container) return;
+      try {
+        const res = await authFetch('/api/reminders/');
+        if (!res.ok) { container.textContent = 'Error loading reminders.'; return; }
+        const reminders = await res.json();
+        if (reminders.length === 0) {
+          container.textContent = 'No reminders set. Go to the Reminders tab to add one.';
+        } else {
+          // Fetch schedule to get race dates
+          const currentYear = new Date().getFullYear();
+          const schedRes = await fetch(`/api/seasons/${currentYear}/schedule`);
+          const schedule = schedRes.ok ? (await schedRes.json()).races : [];
+          const dateMap = {};
+          schedule.forEach(r => { dateMap[r.round] = r.date; });
+
+          container.innerHTML = reminders.map(r => {
+            const raceDate = dateMap[r.race_round];
+            const notifyDate = raceDate ? new Date(raceDate) : null;
+            if (notifyDate) {
+              notifyDate.setHours(notifyDate.getHours() - r.notify_before_hours);
+            }
+            const timeLeft = notifyDate ? formatTimeUntil(notifyDate.toISOString()) : '';
+            const raceName = schedule.find(s => s.round === r.race_round)?.race_name || `Round ${r.race_round}`;
+            return `<div style="margin-bottom:0.4rem;">
+              <strong>${raceName}</strong> <span style="color:var(--text-muted)">— ${timeLeft}</span>
+            </div>`;
+          }).join('');
+        }
+      } catch (e) { container.textContent = 'Error loading reminders.'; }
     }
 
     function updateHeader() {
