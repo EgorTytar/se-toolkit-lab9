@@ -11,14 +11,6 @@ from dependencies import get_current_user
 router = APIRouter(prefix="/api/users/me/favorites", tags=["favorites"])
 
 
-class FavoriteResponse:
-    id: int
-    driver_id: str | None
-    constructor_id: str | None
-
-    model_config = {"from_attributes": True}
-
-
 @router.get("/", response_model=list[dict])
 async def list_favorites(
     user: User = Depends(get_current_user),
@@ -30,11 +22,7 @@ async def list_favorites(
     )
     favorites = result.scalars().all()
     return [
-        {
-            "id": f.id,
-            "driver_id": f.driver_id,
-            "constructor_id": f.constructor_id,
-        }
+        {"id": f.id, "driver_id": f.driver_id, "constructor_id": f.constructor_id}
         for f in favorites
     ]
 
@@ -48,16 +36,20 @@ async def add_favorite(
 ) -> dict:
     """Add a favorite driver or constructor."""
     if not driver_id and not constructor_id:
-        raise HTTPException(status_code=400, detail="Provide driver_id or constructor_id")
+        raise HTTPException(
+            status_code=400, detail="Provide driver_id or constructor_id"
+        )
 
     fav = UserFavorite(
-        user_id=user.id,
-        driver_id=driver_id,
-        constructor_id=constructor_id,
+        user_id=user.id, driver_id=driver_id, constructor_id=constructor_id
     )
     db.add(fav)
     await db.flush()
-    return {"id": fav.id, "driver_id": fav.driver_id, "constructor_id": fav.constructor_id}
+    return {
+        "id": fav.id,
+        "driver_id": fav.driver_id,
+        "constructor_id": fav.constructor_id,
+    }
 
 
 @router.delete("/{favorite_id}", status_code=status.HTTP_204_NO_CONTENT)

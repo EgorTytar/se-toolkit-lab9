@@ -79,6 +79,11 @@
       cursor: pointer; transition: all 0.2s;
     }
     .btn-logout:hover { background: var(--surface-hover); color: var(--text); }
+    .btn-fav {
+      background: none; border: none; font-size: 1.3rem; cursor: pointer;
+      transition: transform 0.2s; padding: 0.25rem;
+    }
+    .btn-fav:hover { transform: scale(1.2); }
 
     /* Tabs */
     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
@@ -438,7 +443,10 @@
 
     <!-- Driver Detail Page -->
     <div class="driver-page" id="section-driver">
-      <div class="back-btn" onclick="goBack()">← Back</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div class="back-btn" onclick="goBack()">← Back</div>
+        <button id="driver-fav-btn" class="btn-fav" style="display:none" onclick="toggleDriverFav()" title="Add to favorites"></button>
+      </div>
       <div id="driver-status" class="status"></div>
       <div id="driver-content"></div>
     </div>
@@ -988,6 +996,49 @@
     if (getToken()) loadProfile();
     updateHeader();
 
+    // ── Favorites ──
+    let currentDriverId = null;
+    let isDriverFav = false;
+
+    async function toggleDriverFav() {
+      if (!currentDriverId) return;
+      const btn = document.getElementById('driver-fav-btn');
+      if (isDriverFav) {
+        // Remove favorite
+        try {
+          const favs = await authFetch('/api/users/me/favorites');
+          const list = await favs.json();
+          const fav = list.find(f => f.driver_id === currentDriverId);
+          if (fav) {
+            await authFetch(`/api/users/me/favorites/${fav.id}`, {method: 'DELETE'});
+          }
+        } catch (e) {}
+        isDriverFav = false;
+        btn.textContent = '🤍';
+        btn.title = 'Add to favorites';
+      } else {
+        // Add favorite
+        await authFetch(`/api/users/me/favorites?driver_id=${currentDriverId}`, {method: 'POST'});
+        isDriverFav = true;
+        btn.textContent = '❤️';
+        btn.title = 'Remove from favorites';
+      }
+    }
+
+    async function checkDriverFav(driverId) {
+      currentDriverId = driverId;
+      const btn = document.getElementById('driver-fav-btn');
+      if (!getToken()) { btn.style.display = 'none'; return; }
+      btn.style.display = '';
+      try {
+        const res = await authFetch('/api/users/me/favorites');
+        const list = await res.json();
+        isDriverFav = list.some(f => f.driver_id === driverId);
+        btn.textContent = isDriverFav ? '❤️' : '🤍';
+        btn.title = isDriverFav ? 'Remove from favorites' : 'Add to favorites';
+      } catch (e) { btn.style.display = 'none'; }
+    }
+
     // ── Driver pages ──
     let previousView = null;
 
@@ -1002,6 +1053,8 @@
 
     function goBack() {
       window.location.hash = '';
+      currentDriverId = null;
+      isDriverFav = false;
       if (previousView) {
         switchTab(previousView.tab);
         if (previousView.tab === 'standings' && previousView.standingsYear) {
@@ -1032,6 +1085,7 @@
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
         const data = await res.json();
         renderDriverPage(data.driver, content);
+        checkDriverFav(data.driver.driver_id);
       } catch (e) {
         content.innerHTML = `<div class="standings-empty"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
       }

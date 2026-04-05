@@ -17,6 +17,7 @@ from db.database import init_db, close_db
 from endpoints.auth import router as auth_router
 from endpoints.users import router as users_router
 from endpoints.reminders import router as reminders_router
+from endpoints.favorites import router as favorites_router
 from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -64,6 +65,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(reminders_router)
+app.include_router(favorites_router)
 
 # Serve static files (frontend UI)
 app.mount("/static", StaticFiles(directory="static"), name="static")

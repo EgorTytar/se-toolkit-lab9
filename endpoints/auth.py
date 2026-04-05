@@ -1,6 +1,6 @@
 """Authentication endpoints: register and login."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,9 +21,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=LoginResponse, status_code=201)
-async def register(body: RegisterRequest, db: AsyncSession = next(get_db())):
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user account."""
-    # Check if email already exists
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Email already registered")
@@ -41,7 +40,7 @@ async def register(body: RegisterRequest, db: AsyncSession = next(get_db())):
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(body: LoginRequest, db: AsyncSession = next(get_db())):
+async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Login and receive a JWT access token."""
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
