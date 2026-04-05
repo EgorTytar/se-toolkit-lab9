@@ -13,7 +13,13 @@
       "Bash(cat *)",
       "Bash(ssh *)",
       "Bash(kill *)",
-      "Bash(sed *)"
+      "Bash(sed *)",
+      "Bash(pip install *)",
+      "Bash(pytest *)",
+      "Bash(uv *)",
+      "Bash(pkill *)",
+      "Bash(docker cp *)",
+      "Bash(docker exec *)"
     ]
   },
   "$version": 3
