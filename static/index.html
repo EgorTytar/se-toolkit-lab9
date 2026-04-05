@@ -1451,6 +1451,7 @@
     }
 
     function renderCircuitPage(circuit, results, container) {
+      // Results already come back most-recent-first from the API
       let html = `
         <div class="circuit-info-card">
           <h2>${circuit.name}</h2>
