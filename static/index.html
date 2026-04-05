@@ -529,26 +529,42 @@
     let currentStandingsType = 'drivers';
 
     function switchTab(tab) {
-      document.getElementById('tab-latest').classList.toggle('active', tab === 'latest');
-      document.getElementById('tab-season').classList.toggle('active', tab === 'season');
-      document.getElementById('tab-standings').classList.toggle('active', tab === 'standings');
-      document.getElementById('tab-reminders').classList.toggle('active', tab === 'reminders');
-      document.getElementById('tab-auth').classList.toggle('active', tab === 'auth');
-      document.getElementById('section-latest').classList.toggle('visible', tab === 'latest');
-      document.getElementById('section-season-controls').classList.toggle('visible', tab === 'season');
-      document.getElementById('section-standings').classList.toggle('visible', tab === 'standings');
-      document.getElementById('section-reminders').classList.toggle('visible', tab === 'reminders');
-      document.getElementById('section-auth').classList.toggle('visible', tab === 'auth');
+      // Hide all sections first
+      document.getElementById('section-latest').classList.remove('visible');
+      document.getElementById('section-season-controls').classList.remove('visible');
+      document.getElementById('section-standings').classList.remove('visible');
+      document.getElementById('section-reminders').classList.remove('visible');
+      document.getElementById('section-auth').classList.remove('visible');
       document.getElementById('section-driver').classList.remove('visible');
-      // Clear season list when leaving the tab
-      if (tab !== 'season') {
-        document.getElementById('race-list').classList.remove('visible');
-        document.getElementById('season-header').classList.remove('visible');
+      document.getElementById('section-circuit').classList.remove('visible');
+      // Deactivate all tabs
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+      // Activate requested tab and section
+      const tabEl = document.getElementById(`tab-${tab}`);
+      if (tabEl) tabEl.classList.add('active');
+
+      switch (tab) {
+        case 'latest':
+          document.getElementById('section-latest').classList.add('visible');
+          fetchLatest();
+          break;
+        case 'season':
+          document.getElementById('section-season-controls').classList.add('visible');
+          document.getElementById('input-year').focus();
+          break;
+        case 'standings':
+          document.getElementById('section-standings').classList.add('visible');
+          document.getElementById('input-standings-year').focus();
+          break;
+        case 'reminders':
+          document.getElementById('section-reminders').classList.add('visible');
+          loadRemindersTab();
+          break;
+        case 'auth':
+          document.getElementById('section-auth').classList.add('visible');
+          break;
       }
-      // Load reminders when tab is opened
-      if (tab === 'reminders') loadRemindersTab();
-      if (tab === 'season') document.getElementById('input-year').focus();
-      if (tab === 'standings') document.getElementById('input-standings-year').focus();
     }
 
     // ── Status helpers ──
