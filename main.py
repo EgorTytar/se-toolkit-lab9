@@ -2,6 +2,7 @@
 
 import logging
 import datetime
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,14 +13,33 @@ from models.schemas import AIResponse, ErrorResponse, RaceSummaryResponse
 from services.ai_assistant import AISummarizer
 from services.ergast_client import ErgastClient
 from services.data_parser import format_race_data
+from db.database import init_db, close_db
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+_db_healthy = False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global _db_healthy
+    try:
+        await init_db()
+        _db_healthy = True
+        logger.info("Database initialized successfully")
+    except Exception as e:
+        logger.warning("Database initialization failed: %s", e)
+        _db_healthy = False
+    yield
+    await close_db()
+
 
 app = FastAPI(
     title="F1 Race Results Summarizer",
     description="AI-powered Formula 1 race summaries using real Ergast API data",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -49,6 +69,7 @@ async def health_check() -> dict:
         "status": "ok",
         "ai_available": ai_summarizer.is_available,
         "ai_model": "qwen",
+        "db_healthy": _db_healthy,
     }
 
 
