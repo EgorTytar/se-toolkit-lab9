@@ -367,9 +367,13 @@ python demo.py latest
 
 ## Success Criteria
 
-- [ ] Application fetches real data from Ergast API
-- [ ] AI generates structured JSON summary per specification
-- [ ] Response includes summary, highlights, and insights
-- [ ] Error handling works for invalid inputs
-- [ ] Demo runs without errors for review
-- [ ] No hallucinated data in any response
+- [x] Application fetches real data from Jolpica-F1 API
+- [x] AI generates structured JSON summary per specification
+- [x] Response includes summary, highlights, and insights
+- [x] Error handling works for invalid inputs
+- [x] Demo runs without errors for review
+- [x] No hallucinated data in any response
+- [x] 30 automated tests covering data parser, AI fallback, and all API endpoints
+- [x] Future races handled gracefully with preview mode
+- [x] Standings available for past years, friendly message for future years
+- [x] Driver detail pages accessible from standings

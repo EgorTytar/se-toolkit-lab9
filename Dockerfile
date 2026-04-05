@@ -7,6 +7,10 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Test dependencies (installed as root before user switch)
+COPY requirements-test.txt .
+RUN pip install --no-cache-dir -r requirements-test.txt
+
 COPY . .
 
 RUN chown -R appuser:appuser /app
