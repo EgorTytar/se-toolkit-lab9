@@ -1082,6 +1082,14 @@
       showAuthStatus('Logged out.', 'loading');
     }
 
+    function updateAccountSections() {
+      // Refresh favorites and reminders shown in Account tab
+      if (currentUser) {
+        loadAccountFavorites();
+        loadAccountReminders();
+      }
+    }
+
     async function loadProfile() {
       try {
         const res = await authFetch('/api/users/me');
@@ -1238,6 +1246,7 @@
         btn.textContent = '❤️';
         btn.title = 'Remove from favorites';
       }
+      updateAccountSections();
     }
 
     async function checkDriverFav(driverId) {
@@ -1383,6 +1392,7 @@
         } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
       }
       renderUpcomingRaces();
+      updateAccountSections();
     }
 
     // ── Driver pages ──
