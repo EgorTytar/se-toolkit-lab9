@@ -663,6 +663,7 @@
             <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.7;">
               This race has not taken place yet. Results and analysis will be available after the race weekend.
             </p>
+            <button class="btn-primary" style="margin-top:0.5rem;font-size:0.78rem;padding:0.35rem 0.75rem;" onclick="addReminderFromDetail(${year}, ${round})">🔔 Add Reminder</button>
           </div>
           <div class="action-bar">
             <button class="btn-ai" id="${btnId}" onclick="askAI(${year}, ${round})">
@@ -1266,6 +1267,35 @@
     // ── Reminders ──
     let upcomingRaces = [];
     let reminderIdsByRound = {};
+
+    async function addReminderFromDetail(year, round) {
+      if (!getToken()) {
+        showAuthStatus('Please login first.', 'error');
+        return;
+      }
+      try {
+        const res = await authFetch('/api/reminders/', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            race_round: round,
+            race_year: year,
+            notify_before_hours: 24,
+            method: 'email'
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const msg = typeof err.detail === 'string' ? err.detail : 'Failed to set reminder';
+          showRemindersStatus('Error: ' + msg, 'error');
+          return;
+        }
+        showRemindersStatus('✓ Reminder added!', 'loading');
+        updateAccountSections();
+      } catch (e) {
+        showRemindersStatus('Error: ' + e.message, 'error');
+      }
+    }
 
     function showRemindersStatus(msg, type) {
       const el = document.getElementById('reminders-status');
