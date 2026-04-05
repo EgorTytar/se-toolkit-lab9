@@ -2,6 +2,7 @@
 
 import logging
 import datetime
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -16,11 +17,11 @@ from services.ergast_client import ErgastClient
 
 logger = logging.getLogger(__name__)
 
-SMTP_HOST = "localhost"
-SMTP_PORT = 587
-SMTP_USER = ""
-SMTP_PASSWORD = ""
-SENDER_EMAIL = "f1-assistant@example.com"
+SMTP_HOST = os.environ.get("SMTP_HOST", "localhost")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "f1-assistant@example.com")
 
 
 scheduler = AsyncIOScheduler()

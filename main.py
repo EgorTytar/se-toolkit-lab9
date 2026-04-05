@@ -17,6 +17,7 @@ from db.database import init_db, close_db
 from endpoints.auth import router as auth_router
 from endpoints.users import router as users_router
 from endpoints.reminders import router as reminders_router
+from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -34,7 +35,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Database initialization failed: %s", e)
         _db_healthy = False
+
+    # Start reminder scheduler
+    start_scheduler()
+
     yield
+
+    # Cleanup
+    stop_scheduler()
     await close_db()
 
 
