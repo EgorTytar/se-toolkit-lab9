@@ -52,6 +52,34 @@
     .ai-badge.on { background: #0a2e1a; color: var(--green); border: 1px solid #1a4a2a; }
     .ai-badge.off { background: #2e1a1a; color: #de7b7b; border: 1px solid #4e2a2a; }
 
+    /* Auth UI */
+    .auth-section { display: none; }
+    .auth-section.visible { display: block; }
+    .auth-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .auth-card {
+      padding: 1.5rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .auth-card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .auth-card label {
+      display: block; font-size: 0.8rem; color: var(--text-muted);
+      text-transform: uppercase; margin-bottom: 0.25rem;
+    }
+    .auth-card input {
+      width: 100%; padding: 0.5rem 0.75rem; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+      font-size: 0.9rem; outline: none; margin-bottom: 0.75rem;
+    }
+    .auth-card input:focus { border-color: var(--blue); }
+    .auth-card .btn-primary { width: 100%; margin-top: 0.5rem; }
+    .user-display { font-size: 0.85rem; font-weight: 600; color: var(--blue); }
+    .btn-logout {
+      padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface); color: var(--text-muted); font-size: 0.78rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-logout:hover { background: var(--surface-hover); color: var(--text); }
+
     /* Tabs */
     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
     .tab {
@@ -331,6 +359,7 @@
       <button class="tab active" onclick="switchTab('latest')" id="tab-latest">Latest Race</button>
       <button class="tab" onclick="switchTab('season')" id="tab-season">Browse Seasons</button>
       <button class="tab" onclick="switchTab('standings')" id="tab-standings">Standings</button>
+      <button class="tab" onclick="switchTab('auth')" id="tab-auth">Account</button>
     </div>
 
     <!-- Latest Race Tab -->
@@ -368,6 +397,42 @@
       <div id="standings-content"></div>
     </div>
 
+    <!-- Account Tab -->
+    <div class="auth-section" id="section-auth">
+      <div id="auth-status" class="status"></div>
+      <div id="auth-guest" class="auth-forms">
+        <div class="auth-card">
+          <h3>🔑 Login</h3>
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="At least 8 characters">
+          <button class="btn-primary" onclick="doLogin()">Login</button>
+        </div>
+        <div class="auth-card">
+          <h3>📝 Register</h3>
+          <label for="reg-email">Email</label>
+          <input type="email" id="reg-email" placeholder="you@example.com">
+          <label for="reg-name">Display Name</label>
+          <input type="text" id="reg-name" placeholder="Your name">
+          <label for="reg-password">Password</label>
+          <input type="password" id="reg-password" placeholder="At least 8 characters">
+          <button class="btn-primary" onclick="doRegister()">Create Account</button>
+        </div>
+      </div>
+      <div id="auth-logged-in" style="display:none">
+        <div class="driver-profile">
+          <h2 id="profile-name">—</h2>
+          <div class="meta">
+            <span>📧 <span id="profile-email">—</span></span>
+          </div>
+          <div class="action-bar" style="margin-top:1rem;">
+            <button class="btn-logout" onclick="doLogout()">Logout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Driver Detail Page -->
     <div class="driver-page" id="section-driver">
       <div class="back-btn" onclick="goBack()">← Back</div>
@@ -391,10 +456,12 @@
       document.getElementById('tab-latest').classList.toggle('active', tab === 'latest');
       document.getElementById('tab-season').classList.toggle('active', tab === 'season');
       document.getElementById('tab-standings').classList.toggle('active', tab === 'standings');
+      document.getElementById('tab-auth').classList.toggle('active', tab === 'auth');
       document.getElementById('section-latest').classList.toggle('visible', tab === 'latest');
       document.getElementById('section-season-controls').classList.toggle('visible', tab === 'season');
       document.getElementById('section-standings').classList.toggle('visible', tab === 'standings');
-      document.getElementById('section-driver').classList.toggle('visible', tab === 'driver');
+      document.getElementById('section-auth').classList.toggle('visible', tab === 'auth');
+      document.getElementById('section-driver').classList.remove('visible');
       // Clear season list when leaving the tab
       if (tab !== 'season') {
         document.getElementById('race-list').classList.remove('visible');
@@ -801,9 +868,96 @@
     document.getElementById('input-standings-year').addEventListener('keydown', e => {
       if (e.key === 'Enter') fetchStandings();
     });
+    document.getElementById('login-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+    document.getElementById('reg-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doRegister();
+    });
 
     checkHealth();
     fetchLatest();
+
+    // ── Auth ──
+    let currentUser = null;
+
+    function getToken() { return localStorage.getItem('f1_token'); }
+    function setToken(t) { localStorage.setItem('f1_token', t); }
+    function clearToken() { localStorage.removeItem('f1_token'); }
+
+    async function authFetch(url, opts = {}) {
+      const headers = opts.headers || {};
+      const token = getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      return fetch(url, { ...opts, headers });
+    }
+
+    function showAuthStatus(msg, type) {
+      const el = document.getElementById('auth-status');
+      el.className = 'status ' + type;
+      el.innerHTML = type === 'loading' ? `<span class="spinner"></span>${msg}` : msg;
+      setTimeout(() => { el.className = 'status'; }, 4000);
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) { showAuthStatus('Please fill in all fields.', 'error'); return; }
+      showAuthStatus('Logging in…', 'loading');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email, password})
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Login failed'); }
+        const data = await res.json();
+        setToken(data.access_token);
+        showAuthStatus('Logged in!', 'loading');
+        await loadProfile();
+      } catch (e) { showAuthStatus('Error: ' + e.message, 'error'); }
+    }
+
+    async function doRegister() {
+      const email = document.getElementById('reg-email').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const password = document.getElementById('reg-password').value;
+      if (!email || !name || !password) { showAuthStatus('Please fill in all fields.', 'error'); return; }
+      if (password.length < 8) { showAuthStatus('Password must be at least 8 characters.', 'error'); return; }
+      showAuthStatus('Creating account…', 'loading');
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email, password, display_name: name})
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Registration failed'); }
+        const data = await res.json();
+        setToken(data.access_token);
+        showAuthStatus('Account created!', 'loading');
+        await loadProfile();
+      } catch (e) { showAuthStatus('Error: ' + e.message, 'error'); }
+    }
+
+    function doLogout() {
+      clearToken(); currentUser = null;
+      document.getElementById('auth-guest').style.display = '';
+      document.getElementById('auth-logged-in').style.display = 'none';
+      showAuthStatus('Logged out.', 'loading');
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await authFetch('/api/users/me');
+        if (!res.ok) { clearToken(); return; }
+        currentUser = await res.json();
+        document.getElementById('profile-name').textContent = currentUser.display_name;
+        document.getElementById('profile-email').textContent = currentUser.email;
+        document.getElementById('auth-guest').style.display = 'none';
+        document.getElementById('auth-logged-in').style.display = 'block';
+        document.getElementById('auth-status').className = 'status';
+      } catch (e) { clearToken(); }
+    }
+
+    if (getToken()) loadProfile();
 
     // ── Driver pages ──
     let previousView = null;
