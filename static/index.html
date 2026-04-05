@@ -944,7 +944,19 @@
       const headers = opts.headers || {};
       const token = getToken();
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      return fetch(url, { ...opts, headers });
+      const res = await fetch(url, { ...opts, headers });
+
+      // Handle expired or invalid token globally
+      if (res.status === 401) {
+        clearToken(); currentUser = null;
+        updateHeader();
+        // Reset sections
+        document.getElementById('auth-guest').style.display = '';
+        document.getElementById('auth-logged-in').style.display = 'none';
+        document.getElementById('driver-fav-btn').style.display = 'none';
+      }
+
+      return res;
     }
 
     function showAuthStatus(msg, type) {
@@ -969,6 +981,10 @@
         setToken(data.access_token);
         showAuthStatus('Logged in!', 'loading');
         await loadProfile();
+        // Reload reminders if visible
+        if (document.getElementById('tab-reminders').classList.contains('active')) {
+          loadRemindersTab();
+        }
       } catch (e) { showAuthStatus('Error: ' + e.message, 'error'); }
     }
 
@@ -989,6 +1005,10 @@
         setToken(data.access_token);
         showAuthStatus('Account created!', 'loading');
         await loadProfile();
+        // Reload reminders if visible
+        if (document.getElementById('tab-reminders').classList.contains('active')) {
+          loadRemindersTab();
+        }
       } catch (e) { showAuthStatus('Error: ' + e.message, 'error'); }
     }
 
@@ -1027,12 +1047,24 @@
         logoutEl.style.display = 'none';
         loginEl.style.display = '';
       }
+      // Update Reminders locked state
+      const locked = document.getElementById('reminders-locked');
+      const list = document.getElementById('reminders-list-container');
+      if (locked && list) {
+        locked.style.display = currentUser ? 'none' : 'block';
+        list.style.display = currentUser ? 'block' : 'none';
+      }
     }
 
     function doLogout() {
-      clearToken(); currentUser = null;
+      clearToken(); currentUser = null; currentDriverId = null; isDriverFav = false;
       document.getElementById('auth-guest').style.display = '';
       document.getElementById('auth-logged-in').style.display = 'none';
+      document.getElementById('driver-fav-btn').textContent = '';
+      document.getElementById('driver-fav-btn').style.display = 'none';
+      // Reset reminders
+      const remList = document.getElementById('reminders-list');
+      if (remList) remList.innerHTML = '';
       showAuthStatus('Logged out.', 'loading');
       updateHeader();
     }
