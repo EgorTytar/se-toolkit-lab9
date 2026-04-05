@@ -352,6 +352,9 @@
       <span class="logo">🏎️</span>
       <h1>F1 Race Assistant</h1>
       <span id="ai-badge" class="ai-badge off">AI</span>
+      <span id="header-user" class="user-display" style="display:none"></span>
+      <button id="header-logout" class="btn-logout" style="display:none" onclick="doLogout()">Logout</button>
+      <button id="header-login" class="btn-logout" style="display:none" onclick="switchTab('auth')">Login</button>
     </header>
 
     <!-- Tab navigation -->
@@ -947,17 +950,43 @@
     async function loadProfile() {
       try {
         const res = await authFetch('/api/users/me');
-        if (!res.ok) { clearToken(); return; }
+        if (!res.ok) { clearToken(); updateHeader(); return; }
         currentUser = await res.json();
         document.getElementById('profile-name').textContent = currentUser.display_name;
         document.getElementById('profile-email').textContent = currentUser.email;
         document.getElementById('auth-guest').style.display = 'none';
         document.getElementById('auth-logged-in').style.display = 'block';
         document.getElementById('auth-status').className = 'status';
-      } catch (e) { clearToken(); }
+        updateHeader();
+      } catch (e) { clearToken(); updateHeader(); }
+    }
+
+    function updateHeader() {
+      const userEl = document.getElementById('header-user');
+      const logoutEl = document.getElementById('header-logout');
+      const loginEl = document.getElementById('header-login');
+      if (currentUser) {
+        userEl.textContent = currentUser.display_name;
+        userEl.style.display = '';
+        logoutEl.style.display = '';
+        loginEl.style.display = 'none';
+      } else {
+        userEl.style.display = 'none';
+        logoutEl.style.display = 'none';
+        loginEl.style.display = '';
+      }
+    }
+
+    function doLogout() {
+      clearToken(); currentUser = null;
+      document.getElementById('auth-guest').style.display = '';
+      document.getElementById('auth-logged-in').style.display = 'none';
+      showAuthStatus('Logged out.', 'loading');
+      updateHeader();
     }
 
     if (getToken()) loadProfile();
+    updateHeader();
 
     // ── Driver pages ──
     let previousView = null;
