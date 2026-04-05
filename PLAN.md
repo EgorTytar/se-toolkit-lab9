@@ -248,6 +248,9 @@ Version 1 shipped with more features than originally planned. Version 2 focuses 
 
 | Feature | Description | Priority |
 |---------|-------------|----------|
+| **Personal Accounts** | User registration, login, profiles with favorite drivers/teams, saved preferences | Critical |
+| **Race Reminders** | Email/push notifications before upcoming races, personalized per user's favorite drivers | Critical |
+| **Database (PostgreSQL)** | Persistent storage for users, favorites, reminders, and cached race data | Critical |
 | **Season Retrospective** | AI-generated summary of an entire season's storylines, key moments, and championship narrative | High |
 | **Upcoming Race Preview** | Detailed AI preview with circuit info, recent form, historical results, and storylines to watch | High |
 | **Free-Form Q&A** | Ask any question about F1 — "Who has the most wins at Monaco?" "How did Hamilton do in 2021?" | High |
@@ -261,27 +264,73 @@ Version 1 shipped with more features than originally planned. Version 2 focuses 
 
 ```
 Version 2 Architecture
+├── database/
+│   ├── postgres/              # PostgreSQL service
+│   ├── migrations/            # Alembic migrations
+│   └── schema.sql             # Initial schema
 ├── services/
-│   ├── retrospective.py      # Full season AI retrospective
-│   ├── preview.py            # Upcoming race preview generator
-│   ├── qa_engine.py          # Free-form Q&A with context
-│   ├── comparison.py         # Driver/team head-to-head
-│   └── circuit_data.py       # Circuit information & stats
+│   ├── auth.py                # User registration, login, JWT
+│   ├── profiles.py            # User profiles, favorites, preferences
+│   ├── reminders.py           # Scheduled notifications, email/push
+│   ├── retrospective.py       # Full season AI retrospective
+│   ├── preview.py             # Upcoming race preview generator
+│   ├── qa_engine.py           # Free-form Q&A with context
+│   ├── comparison.py          # Driver/team head-to-head
+│   └── circuit_data.py        # Circuit information & stats
 ├── endpoints/
-│   ├── retrospective.py      # GET /api/seasons/{year}/retrospective
-│   ├── preview.py            # GET /api/races/next/preview
-│   ├── qa.py                 # POST /api/ask
-│   └── compare.py            # GET /api/compare/drivers?a=x&b=y
+│   ├── auth.py                # POST /api/auth/register, /api/auth/login
+│   ├── users.py               # GET/PUT /api/users/me, /api/users/me/favorites
+│   ├── reminders.py           # GET/POST /api/reminders
+│   ├── retrospective.py       # GET /api/seasons/{year}/retrospective
+│   ├── preview.py             # GET /api/races/next/preview
+│   ├── qa.py                  # POST /api/ask
+│   └── compare.py             # GET /api/compare/drivers?a=x&b=y
 └── web_ui/
-    ├── index.html            # Main dashboard (existing)
-    ├── circuit.html          # Circuit detail pages
-    └── compare.html          # Driver/team comparison tool
+    ├── index.html             # Main dashboard (existing)
+    ├── auth.html              # Login/Register pages
+    ├── profile.html           # User profile, favorites, settings
+    ├── circuit.html           # Circuit detail pages
+    └── compare.html           # Driver/team comparison tool
+├── docker-compose.yml         # + PostgreSQL service
+└── requirements.txt           # + sqlalchemy, psycopg2, jose, passlib
+```
+
+### Database Schema (Overview)
+
+```sql
+users (
+    id, email, password_hash, display_name, created_at, last_login
+)
+
+user_favorites (
+    user_id, driver_id, constructor_id, created_at
+)
+
+reminders (
+    id, user_id, race_round, race_year, notify_before_hours,
+    enabled, method (email/push), created_at
+)
+
+race_cache (
+    year, round, race_name, circuit, date, results_json,
+    ai_summary_json, cached_at
+)
 ```
 
 ### New Endpoints (Version 2)
 
 | Method | Path | Description |
 |--------|------|-------------|
+| POST | `/api/auth/register` | User registration |
+| POST | `/api/auth/login` | User login (returns JWT) |
+| GET | `/api/users/me` | Current user profile |
+| PUT | `/api/users/me` | Update profile |
+| GET | `/api/users/me/favorites` | Get favorite drivers/teams |
+| POST | `/api/users/me/favorites` | Add favorite |
+| DELETE | `/api/users/me/favorites/{id}` | Remove favorite |
+| GET | `/api/reminders` | List user's race reminders |
+| POST | `/api/reminders` | Create a reminder |
+| DELETE | `/api/reminders/{id}` | Delete a reminder |
 | GET | `/api/seasons/{year}/retrospective` | AI summary of entire season |
 | GET | `/api/races/next/preview` | Preview of next scheduled race |
 | POST | `/api/ask` | Free-form Q&A about F1 data |
@@ -291,13 +340,17 @@ Version 2 Architecture
 
 ### Implementation Order
 
-1. **Upcoming Race Preview** — natural extension of existing future race handling
-2. **Season Retrospective** — aggregates all races in a season into AI narrative
-3. **Free-Form Q&A** — builds on existing AI summarizer with conversational context
-4. **Driver Head-to-Head** — leverages existing driver pages infrastructure
-5. **Circuit Pages** — new data from Ergast, new UI section
-6. **Team Comparison** — similar to driver comparison
-7. **Live Race Weekend** — requires polling or webhook for session updates
+1. **Database (PostgreSQL)** — foundation for all V2 features: users, favorites, reminders, cache
+2. **Personal Accounts** — registration, login (JWT), profiles — unlocks personalized features
+3. **Race Reminders** — notification scheduler, email/push integration, user-configured alerts
+4. **Upcoming Race Preview** — natural extension of existing future race handling
+5. **Season Retrospective** — aggregates all races in a season into AI narrative
+6. **Free-Form Q&A** — builds on existing AI summarizer with conversational context
+7. **Driver Head-to-Head** — leverages existing driver pages infrastructure
+8. **Circuit Pages** — new data from Ergast, new UI section
+9. **Team Comparison** — similar to driver comparison
+10. **Championship Prediction** — AI-powered predictions
+11. **Live Race Weekend** — requires polling or webhook for session updates
 
 ---
 
@@ -305,10 +358,13 @@ Version 2 Architecture
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Ergast API downtime | High | Cache last successful response |
+| Ergast API downtime | High | Cache last successful response in database |
 | LLM rate limits | Medium | Fallback to template-based summary |
 | Invalid JSON from LLM | Medium | Retry with stricter prompt, or parse gracefully |
 | Missing race data | Low | Return clear message to user |
+| User data breaches | Critical | Password hashing (bcrypt), JWT expiry, HTTPS |
+| Notification spam | Medium | User-configurable limits, unsubscribe option |
+| Database migration failures | Medium | Alembic with rollback support |
 
 ---
 
