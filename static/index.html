@@ -52,6 +52,59 @@
     .ai-badge.on { background: #0a2e1a; color: var(--green); border: 1px solid #1a4a2a; }
     .ai-badge.off { background: #2e1a1a; color: #de7b7b; border: 1px solid #4e2a2a; }
 
+    /* Auth UI */
+    .auth-section { display: none; }
+    .auth-section.visible { display: block; }
+    .auth-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    .auth-card {
+      padding: 1.5rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .auth-card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .auth-card label {
+      display: block; font-size: 0.8rem; color: var(--text-muted);
+      text-transform: uppercase; margin-bottom: 0.25rem;
+    }
+    .auth-card input {
+      width: 100%; padding: 0.5rem 0.75rem; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 6px; color: var(--text);
+      font-size: 0.9rem; outline: none; margin-bottom: 0.75rem;
+    }
+    .auth-card input:focus { border-color: var(--blue); }
+    .auth-card .btn-primary { width: 100%; margin-top: 0.5rem; }
+    .user-display { font-size: 0.85rem; font-weight: 600; color: var(--blue); }
+    .btn-logout {
+      padding: 0.35rem 0.75rem; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--surface); color: var(--text-muted); font-size: 0.78rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-logout:hover { background: var(--surface-hover); color: var(--text); }
+    .btn-fav {
+      background: none; border: none; font-size: 1.3rem; cursor: pointer;
+      transition: transform 0.2s; padding: 0.25rem;
+    }
+    .btn-fav:hover { transform: scale(1.2); }
+
+    /* Reminders UI */
+    .reminders-section { display: none; }
+    .reminders-section.visible { display: block; }
+    .reminders-list { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1.5rem; }
+    .rem-race-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.6rem 0.75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .rem-race-info { flex: 1; }
+    .rem-race-info .race-name { font-weight: 600; }
+    .rem-race-info .race-meta { color: var(--text-muted); font-size: 0.75rem; }
+    .rem-toggle {
+      padding: 0.3rem 0.7rem; border: 1px solid var(--border); border-radius: 4px;
+      background: transparent; color: var(--text-muted); font-size: 0.75rem;
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .rem-toggle.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+    .rem-toggle:hover:not(.active) { background: var(--surface-hover); }
+
     /* Tabs */
     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
     .tab {
@@ -324,6 +377,9 @@
       <span class="logo">🏎️</span>
       <h1>F1 Race Assistant</h1>
       <span id="ai-badge" class="ai-badge off">AI</span>
+      <span id="header-user" class="user-display" style="display:none"></span>
+      <button id="header-logout" class="btn-logout" style="display:none" onclick="doLogout()">Logout</button>
+      <button id="header-login" class="btn-logout" style="display:none" onclick="switchTab('auth')">Login</button>
     </header>
 
     <!-- Tab navigation -->
@@ -331,6 +387,8 @@
       <button class="tab active" onclick="switchTab('latest')" id="tab-latest">Latest Race</button>
       <button class="tab" onclick="switchTab('season')" id="tab-season">Browse Seasons</button>
       <button class="tab" onclick="switchTab('standings')" id="tab-standings">Standings</button>
+      <button class="tab" onclick="switchTab('reminders')" id="tab-reminders">Reminders</button>
+      <button class="tab" onclick="switchTab('auth')" id="tab-auth">Account</button>
     </div>
 
     <!-- Latest Race Tab -->
@@ -368,9 +426,75 @@
       <div id="standings-content"></div>
     </div>
 
+    <!-- Account Tab -->
+    <div class="auth-section" id="section-auth">
+      <div id="auth-status" class="status"></div>
+      <div id="auth-guest" class="auth-forms">
+        <div class="auth-card">
+          <h3>🔑 Login</h3>
+          <label for="login-email">Email</label>
+          <input type="email" id="login-email" placeholder="you@example.com">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="At least 8 characters">
+          <button class="btn-primary" onclick="doLogin()">Login</button>
+        </div>
+        <div class="auth-card">
+          <h3>📝 Register</h3>
+          <label for="reg-email">Email</label>
+          <input type="email" id="reg-email" placeholder="you@example.com">
+          <label for="reg-name">Display Name</label>
+          <input type="text" id="reg-name" placeholder="Your name">
+          <label for="reg-password">Password</label>
+          <input type="password" id="reg-password" placeholder="At least 8 characters">
+          <button class="btn-primary" onclick="doRegister()">Create Account</button>
+        </div>
+      </div>
+      <div id="auth-logged-in" style="display:none">
+        <div class="driver-profile">
+          <h2 id="profile-name">—</h2>
+          <div class="meta">
+            <span>📧 <span id="profile-email">—</span></span>
+          </div>
+          <div class="action-bar" style="margin-top:1rem;">
+            <button class="btn-logout" onclick="doLogout()">Logout</button>
+          </div>
+        </div>
+        <!-- Favorites Section -->
+        <div style="margin-top:1.5rem;">
+          <h3 style="margin-bottom:0.75rem;">Favorite Drivers</h3>
+          <div id="account-fav-list" style="color:var(--text-muted);font-size:0.85rem;">Loading…</div>
+        </div>
+        <!-- Reminders Section -->
+        <div style="margin-top:1.5rem;">
+          <h3 style="margin-bottom:0.75rem;">Your Reminders</h3>
+          <div id="account-rem-list" style="color:var(--text-muted);font-size:0.85rem;">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reminders Tab -->
+    <div class="reminders-section" id="section-reminders">
+      <div id="reminders-status" class="status"></div>
+      <div id="reminders-locked" style="display:none" class="standings-empty">
+        <div class="icon">🔒</div>
+        <p>Please <a href="#" onclick="switchTab('auth'); return false;">login</a> to set race reminders.</p>
+      </div>
+      <div id="reminders-upcoming" style="display:none">
+        <h3 style="margin-bottom:0.75rem;">Upcoming Races — <span id="rem-season-label">2024</span></h3>
+        <div id="rem-races-list" class="reminders-list"></div>
+      </div>
+      <div id="rem-no-races" style="display:none" class="standings-empty">
+        <div class="icon">🏁</div>
+        <p>All races for this season have been completed.</p>
+      </div>
+    </div>
+
     <!-- Driver Detail Page -->
     <div class="driver-page" id="section-driver">
-      <div class="back-btn" onclick="goBack()">← Back</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+        <div class="back-btn" onclick="goBack()">← Back</div>
+        <button id="driver-fav-btn" class="btn-fav" style="display:none" onclick="toggleDriverFav()" title="Add to favorites"></button>
+      </div>
       <div id="driver-status" class="status"></div>
       <div id="driver-content"></div>
     </div>
@@ -391,15 +515,21 @@
       document.getElementById('tab-latest').classList.toggle('active', tab === 'latest');
       document.getElementById('tab-season').classList.toggle('active', tab === 'season');
       document.getElementById('tab-standings').classList.toggle('active', tab === 'standings');
+      document.getElementById('tab-reminders').classList.toggle('active', tab === 'reminders');
+      document.getElementById('tab-auth').classList.toggle('active', tab === 'auth');
       document.getElementById('section-latest').classList.toggle('visible', tab === 'latest');
       document.getElementById('section-season-controls').classList.toggle('visible', tab === 'season');
       document.getElementById('section-standings').classList.toggle('visible', tab === 'standings');
-      document.getElementById('section-driver').classList.toggle('visible', tab === 'driver');
+      document.getElementById('section-reminders').classList.toggle('visible', tab === 'reminders');
+      document.getElementById('section-auth').classList.toggle('visible', tab === 'auth');
+      document.getElementById('section-driver').classList.remove('visible');
       // Clear season list when leaving the tab
       if (tab !== 'season') {
         document.getElementById('race-list').classList.remove('visible');
         document.getElementById('season-header').classList.remove('visible');
       }
+      // Load reminders when tab is opened
+      if (tab === 'reminders') loadRemindersTab();
       if (tab === 'season') document.getElementById('input-year').focus();
       if (tab === 'standings') document.getElementById('input-standings-year').focus();
     }
@@ -418,9 +548,13 @@
       const medals = ['gold', 'silver', 'bronze'];
       let html = '<div class="podium-card">';
       podium.slice(0, 3).forEach((p, i) => {
+        const driverId = p.driver_id || '';
+        const driverHtml = driverId
+          ? `<span class="driver-link" onclick="openDriver('${driverId}')">${p.name}</span>`
+          : `<span class="driver-link">${p.name}</span>`;
         html += `<div class="podium-card-item">
           <div class="pos ${medals[i]}">${p.position}</div>
-          <div class="driver">${p.name}</div>
+          <div class="driver">${driverHtml}</div>
           <div class="team">${p.constructor}</div>
         </div>`;
       });
@@ -472,7 +606,7 @@
 
       if (isFuture) {
         detail.innerHTML = `
-          <h3>${data.race_name}</h3>
+          <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
             <span>📍 ${data.circuit}</span>
             <span>📅 ${data.date}</span>
@@ -493,7 +627,7 @@
         `;
       } else {
         detail.innerHTML = `
-          <h3>${data.race_name}</h3>
+          <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
             <span>📍 ${data.circuit}</span>
             <span>📅 ${data.date}</span>
@@ -801,9 +935,394 @@
     document.getElementById('input-standings-year').addEventListener('keydown', e => {
       if (e.key === 'Enter') fetchStandings();
     });
+    document.getElementById('login-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+    document.getElementById('reg-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doRegister();
+    });
 
     checkHealth();
     fetchLatest();
+
+    // ── Auth ──
+    let currentUser = null;
+
+    function getToken() { return localStorage.getItem('f1_token'); }
+    function setToken(t) { localStorage.setItem('f1_token', t); }
+    function clearToken() { localStorage.removeItem('f1_token'); }
+
+    async function authFetch(url, opts = {}) {
+      const headers = opts.headers || {};
+      const token = getToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(url, { ...opts, headers });
+
+      // Handle expired or invalid token globally
+      if (res.status === 401) {
+        clearToken(); currentUser = null;
+        updateHeader();
+        // Reset sections
+        document.getElementById('auth-guest').style.display = '';
+        document.getElementById('auth-logged-in').style.display = 'none';
+        document.getElementById('driver-fav-btn').style.display = 'none';
+      }
+
+      return res;
+    }
+
+    function showAuthStatus(msg, type) {
+      const el = document.getElementById('auth-status');
+      el.className = 'status ' + type;
+      el.innerHTML = type === 'loading' ? `<span class="spinner"></span>${msg}` : msg;
+      setTimeout(() => { el.className = 'status'; }, 4000);
+    }
+
+    async function doLogin() {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!email || !password) { showAuthStatus('Please fill in all fields.', 'error'); return; }
+      showAuthStatus('Logging in…', 'loading');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email, password})
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Login failed'); }
+        const data = await res.json();
+        setToken(data.access_token);
+        showAuthStatus('Logged in!', 'loading');
+        await loadProfile();
+        // Reload reminders if visible
+        if (document.getElementById('tab-reminders').classList.contains('active')) {
+          loadRemindersTab();
+        }
+      } catch (e) { showAuthStatus('Error: ' + e.message, 'error'); }
+    }
+
+    async function doRegister() {
+      const email = document.getElementById('reg-email').value.trim();
+      const name = document.getElementById('reg-name').value.trim();
+      const password = document.getElementById('reg-password').value;
+      if (!email || !name || !password) { showAuthStatus('Please fill in all fields.', 'error'); return; }
+      if (password.length < 8) { showAuthStatus('Password must be at least 8 characters.', 'error'); return; }
+      showAuthStatus('Creating account…', 'loading');
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({email, password, display_name: name})
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'Registration failed'); }
+        const data = await res.json();
+        setToken(data.access_token);
+        showAuthStatus('Account created!', 'loading');
+        await loadProfile();
+        // Reload reminders if visible
+        if (document.getElementById('tab-reminders').classList.contains('active')) {
+          loadRemindersTab();
+        }
+      } catch (e) { showAuthStatus('Error: ' + e.message, 'error'); }
+    }
+
+    function doLogout() {
+      clearToken(); currentUser = null;
+      document.getElementById('auth-guest').style.display = '';
+      document.getElementById('auth-logged-in').style.display = 'none';
+      showAuthStatus('Logged out.', 'loading');
+    }
+
+    async function loadProfile() {
+      try {
+        const res = await authFetch('/api/users/me');
+        if (!res.ok) { clearToken(); updateHeader(); return; }
+        currentUser = await res.json();
+        document.getElementById('profile-name').textContent = currentUser.display_name;
+        document.getElementById('profile-email').textContent = currentUser.email;
+        document.getElementById('auth-guest').style.display = 'none';
+        document.getElementById('auth-logged-in').style.display = 'block';
+        document.getElementById('auth-status').className = 'status';
+        updateHeader();
+        // Load account sections
+        loadAccountFavorites();
+        loadAccountReminders();
+      } catch (e) { clearToken(); updateHeader(); }
+    }
+
+    async function loadAccountFavorites() {
+      const container = document.getElementById('account-fav-list');
+      if (!container) return;
+      try {
+        const res = await authFetch('/api/users/me/favorites');
+        if (!res.ok) { container.textContent = 'Error loading favorites.'; return; }
+        const favs = await res.json();
+        const drivers = favs.filter(f => f.driver_id);
+        if (drivers.length === 0) {
+          container.textContent = 'No favorite drivers yet. Click 🤍 on a driver page to add one.';
+        } else {
+          container.innerHTML = drivers.map(f =>
+            `<span class="driver-link" style="margin-right:0.75rem;cursor:pointer;" onclick="openDriver('${f.driver_id}')">${f.driver_id}</span>`
+          ).join('');
+        }
+      } catch (e) { container.textContent = 'Error loading favorites.'; }
+    }
+
+    function formatTimeUntil(dateStr) {
+      const now = new Date();
+      const target = new Date(dateStr);
+      const diffMs = target - now;
+      if (diffMs <= 0) return 'Starting now';
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const days = Math.floor(hours / 24);
+      if (days > 0) return `in ${days}d ${hours % 24}h`;
+      return `in ${hours}h`;
+    }
+
+    async function loadAccountReminders() {
+      const container = document.getElementById('account-rem-list');
+      if (!container) return;
+      try {
+        const res = await authFetch('/api/reminders/');
+        if (!res.ok) { container.textContent = 'Error loading reminders.'; return; }
+        const reminders = await res.json();
+        if (reminders.length === 0) {
+          container.textContent = 'No reminders set. Go to the Reminders tab to add one.';
+        } else {
+          // Fetch schedule to get race dates
+          const currentYear = new Date().getFullYear();
+          const schedRes = await fetch(`/api/seasons/${currentYear}/schedule`);
+          const schedule = schedRes.ok ? (await schedRes.json()).races : [];
+          const dateMap = {};
+          schedule.forEach(r => { dateMap[r.round] = r.date; });
+
+          container.innerHTML = reminders.map(r => {
+            const raceDate = dateMap[r.race_round];
+            const notifyDate = raceDate ? new Date(raceDate) : null;
+            if (notifyDate) {
+              notifyDate.setHours(notifyDate.getHours() - r.notify_before_hours);
+            }
+            const timeLeft = notifyDate ? formatTimeUntil(notifyDate.toISOString()) : '';
+            const race = schedule.find(s => s.round === r.race_round);
+            const raceName = race ? race.race_name : `Round ${r.race_round}`;
+            const raceLink = race
+              ? `<span class="driver-link" style="cursor:pointer;" onclick="goToRace(${r.race_year}, ${r.race_round})">${raceName}</span>`
+              : raceName;
+            return `<div style="margin-bottom:0.4rem;">
+              <strong>${raceLink}</strong> <span style="color:var(--text-muted)">— ${timeLeft}</span>
+            </div>`;
+          }).join('');
+        }
+      } catch (e) { container.textContent = 'Error loading reminders.'; }
+    }
+
+    function updateHeader() {
+      const userEl = document.getElementById('header-user');
+      const logoutEl = document.getElementById('header-logout');
+      const loginEl = document.getElementById('header-login');
+      if (currentUser) {
+        userEl.textContent = currentUser.display_name;
+        userEl.style.display = '';
+        logoutEl.style.display = '';
+        loginEl.style.display = 'none';
+      } else {
+        userEl.style.display = 'none';
+        logoutEl.style.display = 'none';
+        loginEl.style.display = '';
+      }
+      // Update Reminders locked state
+      const locked = document.getElementById('reminders-locked');
+      const upcoming = document.getElementById('reminders-upcoming');
+      const noRaces = document.getElementById('rem-no-races');
+      if (locked) {
+        if (currentUser) {
+          locked.style.display = 'none';
+        } else {
+          locked.style.display = 'block';
+          if (upcoming) upcoming.style.display = 'none';
+          if (noRaces) noRaces.style.display = 'none';
+        }
+      }
+    }
+
+    function doLogout() {
+      clearToken(); currentUser = null; currentDriverId = null; isDriverFav = false;
+      upcomingRaces = []; reminderIdsByRound = {};
+      document.getElementById('auth-guest').style.display = '';
+      document.getElementById('auth-logged-in').style.display = 'none';
+      document.getElementById('driver-fav-btn').textContent = '';
+      document.getElementById('driver-fav-btn').style.display = 'none';
+      const remList = document.getElementById('rem-races-list');
+      if (remList) remList.innerHTML = '';
+      showAuthStatus('Logged out.', 'loading');
+      updateHeader();
+    }
+
+    if (getToken()) loadProfile();
+    updateHeader();
+
+    // ── Favorites ──
+    let currentDriverId = null;
+    let isDriverFav = false;
+
+    async function toggleDriverFav() {
+      if (!currentDriverId) return;
+      const btn = document.getElementById('driver-fav-btn');
+      if (isDriverFav) {
+        // Remove favorite
+        try {
+          const favs = await authFetch('/api/users/me/favorites');
+          const list = await favs.json();
+          const fav = list.find(f => f.driver_id === currentDriverId);
+          if (fav) {
+            await authFetch(`/api/users/me/favorites/${fav.id}`, {method: 'DELETE'});
+          }
+        } catch (e) {}
+        isDriverFav = false;
+        btn.textContent = '🤍';
+        btn.title = 'Add to favorites';
+      } else {
+        // Add favorite
+        await authFetch(`/api/users/me/favorites?driver_id=${currentDriverId}`, {method: 'POST'});
+        isDriverFav = true;
+        btn.textContent = '❤️';
+        btn.title = 'Remove from favorites';
+      }
+    }
+
+    async function checkDriverFav(driverId) {
+      currentDriverId = driverId;
+      const btn = document.getElementById('driver-fav-btn');
+      if (!getToken()) { btn.style.display = 'none'; return; }
+      btn.style.display = '';
+      try {
+        const res = await authFetch('/api/users/me/favorites');
+        const list = await res.json();
+        isDriverFav = list.some(f => f.driver_id === driverId);
+        btn.textContent = isDriverFav ? '❤️' : '🤍';
+        btn.title = isDriverFav ? 'Remove from favorites' : 'Add to favorites';
+      } catch (e) { btn.style.display = 'none'; }
+    }
+
+    // ── Reminders ──
+    let upcomingRaces = [];
+    let reminderIdsByRound = {};
+
+    function showRemindersStatus(msg, type) {
+      const el = document.getElementById('reminders-status');
+      el.className = 'status ' + type;
+      el.innerHTML = type === 'loading' ? `<span class="spinner"></span>${msg}` : msg;
+      setTimeout(() => { el.className = 'status'; }, 4000);
+    }
+
+    async function loadRemindersTab() {
+      const locked = document.getElementById('reminders-locked');
+      const upcoming = document.getElementById('reminders-upcoming');
+      const noRaces = document.getElementById('rem-no-races');
+      const token = getToken();
+
+      if (!token) {
+        locked.style.display = 'block';
+        upcoming.style.display = 'none';
+        noRaces.style.display = 'none';
+        return;
+      }
+      locked.style.display = 'none';
+
+      showRemindersStatus('Loading upcoming races…', 'loading');
+
+      // Fetch current season schedule
+      const currentYear = new Date().getFullYear();
+      try {
+        const schedRes = await fetch(`/api/seasons/${currentYear}/schedule`);
+        if (!schedRes.ok) throw new Error('Could not load schedule');
+        const schedData = await schedRes.json();
+        upcomingRaces = schedData.races.filter(r => new Date(r.date) >= new Date());
+
+        document.getElementById('rem-season-label').textContent = currentYear;
+
+        if (upcomingRaces.length === 0) {
+          upcoming.style.display = 'none';
+          noRaces.style.display = 'block';
+          hideStatus('reminders-status');
+          return;
+        }
+        noRaces.style.display = 'none';
+        upcoming.style.display = 'block';
+
+        // Fetch existing reminders
+        const remRes = await authFetch('/api/reminders/');
+        const existing = remRes.ok ? await remRes.json() : [];
+        reminderIdsByRound = {};
+        existing.forEach(r => {
+          if (r.race_year === currentYear) {
+            reminderIdsByRound[r.race_round] = r.id;
+          }
+        });
+
+        renderUpcomingRaces();
+        hideStatus('reminders-status');
+      } catch (e) {
+        showRemindersStatus('Error: ' + e.message, 'error');
+      }
+    }
+
+    function renderUpcomingRaces() {
+      const container = document.getElementById('rem-races-list');
+      container.innerHTML = upcomingRaces.map(race => {
+        const hasReminder = reminderIdsByRound[race.round] !== undefined;
+        const btnClass = hasReminder ? 'rem-toggle active' : 'rem-toggle';
+        const btnText = hasReminder ? '✓ Reminding' : 'Set Reminder';
+        return `<div class="rem-race-item">
+          <div class="rem-race-info">
+            <div class="race-name">
+              <span class="driver-link" onclick="goToRace(${new Date().getFullYear()}, ${race.round})">R${race.round} — ${race.race_name}</span>
+            </div>
+            <div class="race-meta">${race.circuit} · ${race.date}</div>
+          </div>
+          <button class="${btnClass}" onclick="toggleReminder(${race.round})">${btnText}</button>
+        </div>`;
+      }).join('');
+    }
+
+    async function toggleReminder(round) {
+      if (reminderIdsByRound[round] !== undefined) {
+        // Remove reminder
+        const id = reminderIdsByRound[round];
+        try {
+          const res = await authFetch(`/api/reminders/${id}`, { method: 'DELETE' });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const msg = typeof err.detail === 'string' ? err.detail : 'Failed to remove reminder';
+            throw new Error(msg);
+          }
+          delete reminderIdsByRound[round];
+        } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
+      } else {
+        // Add reminder — send as JSON body, not query params
+        const race = upcomingRaces.find(r => r.round === round);
+        if (!race) return;
+        try {
+          const currentYear = new Date().getFullYear();
+          const res = await authFetch('/api/reminders/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              race_round: round,
+              race_year: currentYear,
+              notify_before_hours: 24,
+              method: 'email'
+            })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const msg = typeof err.detail === 'string' ? err.detail : (Array.isArray(err.detail) ? err.detail[0]?.msg || 'Validation error' : 'Failed to set reminder');
+            throw new Error(msg);
+          }
+          const data = await res.json();
+          reminderIdsByRound[round] = data.id;
+        } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
+      }
+      renderUpcomingRaces();
+    }
 
     // ── Driver pages ──
     let previousView = null;
@@ -819,6 +1338,8 @@
 
     function goBack() {
       window.location.hash = '';
+      currentDriverId = null;
+      isDriverFav = false;
       if (previousView) {
         switchTab(previousView.tab);
         if (previousView.tab === 'standings' && previousView.standingsYear) {
@@ -827,6 +1348,28 @@
         }
       } else {
         switchTab('latest');
+      }
+    }
+
+    async function goToRace(year, round) {
+      previousView = {
+        tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
+        standingsYear: currentStandingsYear,
+      };
+      switchTab('season');
+      document.getElementById('input-year').value = year;
+      // Fetch season if not loaded
+      try {
+        const res = await fetch(`/api/seasons/${year}/schedule`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        renderSchedule(data);
+        // Open the specific race
+        setTimeout(() => {
+          toggleDetail(year, round, document.getElementById(`race-item-${year}-${round}`));
+        }, 100);
+      } catch (e) {
+        showStatus('season-status', 'Error: ' + e.message, 'error');
       }
     }
 
@@ -849,6 +1392,7 @@
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
         const data = await res.json();
         renderDriverPage(data.driver, content);
+        checkDriverFav(data.driver.driver_id);
       } catch (e) {
         content.innerHTML = `<div class="standings-empty"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
       }
@@ -938,7 +1482,7 @@
         const grid = r.grid || '—';
         html += `<tr>
           <td>${r.round}</td>
-          <td class="name">${r.race_name}</td>
+          <td class="name"><span class="driver-link" onclick="goToRace(${data.season}, ${r.round})">${r.race_name}</span></td>
           <td>${grid}</td>
           <td class="pos ${posClass}">${posDisplay}</td>
           <td class="pts">${r.points}</td>
