@@ -282,6 +282,30 @@ async def get_driver_info(driver_id: str, year: int = 0) -> dict:
 
 
 @app.get(
+    "/api/circuits/{circuit_id}",
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def get_circuit_details(circuit_id: str) -> dict:
+    """Get circuit info and recent race results."""
+    try:
+        info = await ergast_client.get_circuit_info(circuit_id)
+    except Exception as e:
+        logger.error("Failed to fetch circuit info for %s: %s", circuit_id, e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Circuit '{circuit_id}' not found")
+
+    results = []
+    try:
+        results = await ergast_client.get_circuit_recent_results(circuit_id, limit=5)
+    except Exception as e:
+        logger.warning("Could not fetch recent results for %s: %s", circuit_id, e)
+
+    return {"circuit": info, "recent_results": results}
+
+
+@app.get(
     "/api/races/{year}/{round}/results",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
