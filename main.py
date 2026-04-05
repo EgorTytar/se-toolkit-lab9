@@ -451,6 +451,7 @@ def _build_basic_results(race_data: dict) -> dict:
             "name": winner["driver_name"],
             "constructor": winner["constructor"],
             "points": winner["points"],
+            "driver_id": winner.get("driver_id", ""),
         }
         if winner
         else None,
@@ -460,6 +461,7 @@ def _build_basic_results(race_data: dict) -> dict:
                 "name": p["driver_name"],
                 "constructor": p["constructor"],
                 "points": p["points"],
+                "driver_id": p.get("driver_id", ""),
             }
             for p in top3
         ],

@@ -548,9 +548,13 @@
       const medals = ['gold', 'silver', 'bronze'];
       let html = '<div class="podium-card">';
       podium.slice(0, 3).forEach((p, i) => {
+        const driverId = p.driver_id || '';
+        const driverHtml = driverId
+          ? `<span class="driver-link" onclick="openDriver('${driverId}')">${p.name}</span>`
+          : `<span class="driver-link">${p.name}</span>`;
         html += `<div class="podium-card-item">
           <div class="pos ${medals[i]}">${p.position}</div>
-          <div class="driver">${p.name}</div>
+          <div class="driver">${driverHtml}</div>
           <div class="team">${p.constructor}</div>
         </div>`;
       });
@@ -602,7 +606,7 @@
 
       if (isFuture) {
         detail.innerHTML = `
-          <h3>${data.race_name}</h3>
+          <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
             <span>📍 ${data.circuit}</span>
             <span>📅 ${data.date}</span>
@@ -623,7 +627,7 @@
         `;
       } else {
         detail.innerHTML = `
-          <h3>${data.race_name}</h3>
+          <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
             <span>📍 ${data.circuit}</span>
             <span>📅 ${data.date}</span>
@@ -1056,7 +1060,7 @@
           container.textContent = 'No favorite drivers yet. Click 🤍 on a driver page to add one.';
         } else {
           container.innerHTML = drivers.map(f =>
-            `<span class="driver-link" style="margin-right:0.75rem;">${f.driver_id}</span>`
+            `<span class="driver-link" style="margin-right:0.75rem;cursor:pointer;" onclick="openDriver('${f.driver_id}')">${f.driver_id}</span>`
           ).join('');
         }
       } catch (e) { container.textContent = 'Error loading favorites.'; }
@@ -1097,9 +1101,13 @@
               notifyDate.setHours(notifyDate.getHours() - r.notify_before_hours);
             }
             const timeLeft = notifyDate ? formatTimeUntil(notifyDate.toISOString()) : '';
-            const raceName = schedule.find(s => s.round === r.race_round)?.race_name || `Round ${r.race_round}`;
+            const race = schedule.find(s => s.round === r.race_round);
+            const raceName = race ? race.race_name : `Round ${r.race_round}`;
+            const raceLink = race
+              ? `<span class="driver-link" style="cursor:pointer;" onclick="goToRace(${r.race_year}, ${r.race_round})">${raceName}</span>`
+              : raceName;
             return `<div style="margin-bottom:0.4rem;">
-              <strong>${raceName}</strong> <span style="color:var(--text-muted)">— ${timeLeft}</span>
+              <strong>${raceLink}</strong> <span style="color:var(--text-muted)">— ${timeLeft}</span>
             </div>`;
           }).join('');
         }
@@ -1265,7 +1273,9 @@
         const btnText = hasReminder ? '✓ Reminding' : 'Set Reminder';
         return `<div class="rem-race-item">
           <div class="rem-race-info">
-            <div class="race-name">R${race.round} — ${race.race_name}</div>
+            <div class="race-name">
+              <span class="driver-link" onclick="goToRace(${new Date().getFullYear()}, ${race.round})">R${race.round} — ${race.race_name}</span>
+            </div>
             <div class="race-meta">${race.circuit} · ${race.date}</div>
           </div>
           <button class="${btnClass}" onclick="toggleReminder(${race.round})">${btnText}</button>
@@ -1338,6 +1348,28 @@
         }
       } else {
         switchTab('latest');
+      }
+    }
+
+    async function goToRace(year, round) {
+      previousView = {
+        tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
+        standingsYear: currentStandingsYear,
+      };
+      switchTab('season');
+      document.getElementById('input-year').value = year;
+      // Fetch season if not loaded
+      try {
+        const res = await fetch(`/api/seasons/${year}/schedule`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        renderSchedule(data);
+        // Open the specific race
+        setTimeout(() => {
+          toggleDetail(year, round, document.getElementById(`race-item-${year}-${round}`));
+        }, 100);
+      } catch (e) {
+        showStatus('season-status', 'Error: ' + e.message, 'error');
       }
     }
 
@@ -1450,7 +1482,7 @@
         const grid = r.grid || '—';
         html += `<tr>
           <td>${r.round}</td>
-          <td class="name">${r.race_name}</td>
+          <td class="name"><span class="driver-link" onclick="goToRace(${data.season}, ${r.round})">${r.race_name}</span></td>
           <td>${grid}</td>
           <td class="pos ${posClass}">${posDisplay}</td>
           <td class="pts">${r.points}</td>

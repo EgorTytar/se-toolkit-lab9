@@ -155,6 +155,7 @@ class ErgastClient:
             parsed_results.append(
                 {
                     "position": int(entry.get("position", 0)),
+                    "driver_id": driver.get("driverId", ""),
                     "driver_number": driver.get("permanentNumber", "N/A"),
                     "driver_code": driver.get("code", "N/A"),
                     "driver_name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
