@@ -1,9 +1,15 @@
 """Shared test fixtures and sample data for F1 Assistant tests."""
 
+import os
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from fastapi.testclient import TestClient
+
+
+def pytest_addoption(parser):
+    """Add custom CLI options for e2e tests."""
+    parser.addoption("--target", default="http://localhost:8000", help="Base URL of running server")
 
 
 # ── Sample race data (realistic Ergast response) ──
