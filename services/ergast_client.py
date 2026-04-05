@@ -33,6 +33,111 @@ class ErgastClient:
         data = await self._get(f"{year}/{round}/results.json")
         return self._extract_race_data(data)
 
+    async def get_season_schedule(self, year: int) -> list[dict]:
+        """Fetch the schedule for a full season (all races)."""
+        data = await self._get(f"{year}.json")
+        try:
+            races = data["MRData"]["RaceTable"]["Races"]
+        except (KeyError, IndexError):
+            raise ValueError(f"No schedule data found for season {year}")
+
+        return [
+            {
+                "round": int(r.get("round", 0)),
+                "race_name": r.get("raceName", "Unknown"),
+                "circuit": r.get("Circuit", {}).get("circuitName", "Unknown"),
+                "date": r.get("date", "Unknown"),
+            }
+            for r in races
+        ]
+
+    async def get_driver_standings(self, year: int) -> list[dict]:
+        """Fetch driver championship standings for a season."""
+        data = await self._get(f"{year}/driverStandings.json")
+        try:
+            standings = data["MRData"]["StandingsTable"]["StandingsLists"][0]
+        except (KeyError, IndexError):
+            raise ValueError(f"No driver standings found for season {year}")
+
+        return [
+            {
+                "position": int(s.get("position", 0)),
+                "driver_id": s.get("Driver", {}).get("driverId", ""),
+                "driver_code": s.get("Driver", {}).get("code", ""),
+                "driver_name": f"{s.get('Driver', {}).get('givenName', '')} {s.get('Driver', {}).get('familyName', '')}".strip(),
+                "nationality": s.get("Driver", {}).get("nationality", ""),
+                "constructor": s.get("Constructors", [{}])[0].get("name", "Unknown"),
+                "points": float(s.get("points", 0)),
+                "wins": int(s.get("wins", 0)),
+            }
+            for s in standings.get("DriverStandings", [])
+        ]
+
+    async def get_constructor_standings(self, year: int) -> list[dict]:
+        """Fetch constructor championship standings for a season."""
+        data = await self._get(f"{year}/constructorStandings.json")
+        try:
+            standings = data["MRData"]["StandingsTable"]["StandingsLists"][0]
+        except (KeyError, IndexError):
+            raise ValueError(f"No constructor standings found for season {year}")
+
+        return [
+            {
+                "position": int(s.get("position", 0)),
+                "constructor": s.get("Constructor", {}).get("name", "Unknown"),
+                "nationality": s.get("Constructor", {}).get("nationality", ""),
+                "points": float(s.get("points", 0)),
+                "wins": int(s.get("wins", 0)),
+            }
+            for s in standings.get("ConstructorStandings", [])
+        ]
+
+    async def get_driver_info(self, driver_ref: str) -> dict:
+        """Fetch basic info for a driver by their Ergast driver reference."""
+        data = await self._get(f"drivers/{driver_ref}.json")
+        try:
+            driver = data["MRData"]["DriverTable"]["Drivers"][0]
+        except (KeyError, IndexError):
+            raise ValueError(f"Driver '{driver_ref}' not found")
+
+        return {
+            "driver_id": driver.get("driverId", ""),
+            "code": driver.get("code", ""),
+            "given_name": driver.get("givenName", ""),
+            "family_name": driver.get("familyName", ""),
+            "full_name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
+            "date_of_birth": driver.get("dateOfBirth", ""),
+            "nationality": driver.get("nationality", ""),
+            "permanent_number": driver.get("permanentNumber", ""),
+            "url": driver.get("url", ""),
+        }
+
+    async def get_driver_season_results(self, driver_ref: str, year: int) -> list[dict]:
+        """Fetch all race results for a driver in a given season."""
+        data = await self._get(f"{year}/drivers/{driver_ref}/results.json")
+        try:
+            races = data["MRData"]["RaceTable"]["Races"]
+        except (KeyError, IndexError):
+            return []
+
+        results = []
+        for race in races:
+            result_entry = race.get("Results", [{}])[0]
+            if not result_entry:
+                continue
+            results.append({
+                "round": int(race.get("round", 0)),
+                "race_name": race.get("raceName", ""),
+                "circuit": race.get("Circuit", {}).get("circuitName", ""),
+                "date": race.get("date", ""),
+                "position": result_entry.get("position", ""),
+                "grid": int(result_entry.get("grid", 0)),
+                "points": float(result_entry.get("points", 0)),
+                "status": result_entry.get("status", ""),
+            })
+
+        return results
+
     @staticmethod
     def _extract_race_data(data: dict) -> dict:
         """Extract and structure race information from the raw API response."""
