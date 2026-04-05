@@ -26,6 +26,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+asyncpg://f1user:f1password@postgres:5432/f1assistant
+      JWT_SECRET: dev-secret-change-me-in-production
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
