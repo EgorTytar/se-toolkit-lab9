@@ -15,6 +15,7 @@ from services.ai_assistant import AISummarizer
 from services.ergast_client import ErgastClient
 from services.data_parser import format_race_data
 from db.database import init_db, close_db
+from db.models import User, UserFavorite, Reminder, RaceCache, ChatSession, ChatMessage  # noqa: F401
 from endpoints.auth import router as auth_router
 from endpoints.users import router as users_router
 from endpoints.reminders import router as reminders_router
