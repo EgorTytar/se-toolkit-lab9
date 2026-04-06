@@ -85,10 +85,20 @@ export default function BrowseSeasonsTab() {
   const fetchAiSummary = async (round: number) => {
     if (!isAuthenticated) return;
     setSummaryLoading(true);
+    // Show immediate acknowledgment
+    setRaceSummary({
+      race_name: '',
+      circuit: '',
+      date: '',
+      season: '',
+      round,
+      ai_response: { summary: '', highlights: '', insights: '' },
+    });
+    setFetchedAi(true);
+    // Fetch in background
     try {
       const data = await raceApi.getRace(year, round);
       setRaceSummary(data);
-      setFetchedAi(true);
     } catch {
       setRaceSummary(null);
     } finally {
@@ -202,18 +212,25 @@ export default function BrowseSeasonsTab() {
                       {isAuthenticated && !hasAi && !fetchedAi && basicResults && (
                         <button
                           onClick={() => fetchAiSummary(race.round)}
-                          disabled={summaryLoading}
-                          className="w-full mb-4 py-2 bg-purple-700 hover:bg-purple-600 disabled:bg-purple-900 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
+                          className="w-full mb-4 py-2 bg-purple-700 hover:bg-purple-600 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
                         >
-                          {summaryLoading ? (
-                            <>
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                              Generating AI Summary...
-                            </>
-                          ) : (
-                            <>🤖 Get AI Summary</>
-                          )}
+                          🤖 Get AI Summary
                         </button>
+                      )}
+
+                      {/* AI Loading Acknowledgment */}
+                      {summaryLoading && (
+                        <div className="mb-4 bg-purple-900/20 border border-purple-700 rounded-lg p-4 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="flex items-center gap-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
+                              <span className="text-purple-300 text-sm font-medium">AI is analyzing...</span>
+                            </div>
+                            <p className="text-gray-400 text-xs">
+                              This may take 10–30 seconds.
+                            </p>
+                          </div>
+                        </div>
                       )}
 
                       {hasAi && (

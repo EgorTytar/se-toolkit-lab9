@@ -68,15 +68,26 @@ export default function LatestRaceTab() {
   };
 
   const fetchAiSummary = async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !data) return;
     setAiLoading(true);
     setError(null);
+    // Show immediate acknowledgment
+    setData({
+      race_name: data.race_name,
+      circuit: data.circuit,
+      date: data.date,
+      season: data.season,
+      round: data.round,
+      ai_response: { summary: '', highlights: '', insights: '' },
+    });
+    setFetched(true);
+    // Fetch in background
     try {
       const res = await raceApi.getLatestRace();
       setData(res);
-      setFetched(true);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load AI summary');
+      setFetched(false);
     } finally {
       setAiLoading(false);
     }
@@ -183,15 +194,23 @@ export default function LatestRaceTab() {
           disabled={aiLoading}
           className="w-full py-3 bg-purple-700 hover:bg-purple-600 disabled:bg-purple-900 text-white rounded-lg font-medium transition flex items-center justify-center gap-2"
         >
-          {aiLoading ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-              Generating AI Summary...
-            </>
-          ) : (
-            <>🤖 Get AI Summary</>
-          )}
+          🤖 Get AI Summary
         </button>
+      )}
+
+      {/* AI Loading Acknowledgment */}
+      {aiLoading && (
+        <div className="bg-purple-900/20 border border-purple-700 rounded-lg p-6 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex items-center gap-3">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400"></div>
+              <span className="text-purple-300 font-medium">AI is analyzing this race...</span>
+            </div>
+            <p className="text-gray-400 text-sm">
+              This may take 10–30 seconds. We'll notify you when it's ready.
+            </p>
+          </div>
+        </div>
       )}
 
       {!isAuthenticated && !hasAi && (
