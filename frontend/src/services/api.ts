@@ -163,9 +163,13 @@ export const chatApi = {
     apiFetch(`${BASE}/api/chat/sessions/${id}`, {
       method: 'DELETE',
     }),
-  sendMessage: (sessionId: number, content: string) =>
+  saveMessage: (sessionId: number, content: string) =>
     apiFetch<{ message: ChatMessage }>(`${BASE}/api/chat/sessions/${sessionId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, save_only: true }),
+    }),
+  generateResponse: (sessionId: number) =>
+    apiFetch<{ message: ChatMessage }>(`${BASE}/api/chat/sessions/${sessionId}/generate`, {
+      method: 'POST',
     }),
 };

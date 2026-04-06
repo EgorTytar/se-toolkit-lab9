@@ -13,6 +13,7 @@ export default function ChatTab() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [aiTyping, setAiTyping] = useState(false);
+  const [typingSession, setTypingSession] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,12 +39,18 @@ export default function ChatTab() {
 
   const openSession = async (id: number) => {
     setActiveSession(id);
-    setAiTyping(false);
     try {
       const session = await chatApi.getSession(id);
       setMessages(session.messages || []);
+      // If this session is currently waiting for AI response, keep typing indicator
+      if (typingSession === id) {
+        setAiTyping(true);
+      } else {
+        setAiTyping(false);
+      }
     } catch {
       setMessages([]);
+      setAiTyping(false);
     }
   };
 
@@ -85,38 +92,72 @@ export default function ChatTab() {
         await loadSessions();
       } catch {
         setAiTyping(false);
+        setTypingSession(null);
         return;
       }
     }
 
-    // Add user message immediately
+    // Track which session is typing
+    setTypingSession(sessionId);
+    setAiTyping(true);
+
+    // Step 1: Save user message to DB immediately (fast, returns instantly)
+    try {
+      await chatApi.saveMessage(sessionId, text);
+    } catch {
+      setAiTyping(false);
+      setTypingSession(null);
+      return;
+    }
+
+    // Add user message to local state
     const userMsg: ChatMessage = {
       id: Date.now(),
       role: 'user',
       content: text,
       created_at: new Date().toISOString(),
     };
-    setMessages(prev => [...prev, userMsg]);
-    setAiTyping(true);
 
-    // Send to API
+    // Always add to local state immediately
+    setMessages(prev => {
+      if (prev.some(m => m.id === userMsg.id)) return prev;
+      return [...prev, userMsg];
+    });
+
+    // Step 2: Generate AI response (this takes time but message is already saved)
     try {
-      const response = await chatApi.sendMessage(sessionId, text);
-      setMessages(prev => [...prev, response.message]);
+      await chatApi.generateResponse(sessionId);
       // Refresh session list to update title/timestamp
       await loadSessions();
+
+      // Reload this session from DB to ensure consistency
+      if (activeSession === sessionId) {
+        const session = await chatApi.getSession(sessionId);
+        setMessages(session.messages || []);
+      }
     } catch {
-      const errorMsg: ChatMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: 'Sorry, I could not generate a response. Please try again.',
-        created_at: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, errorMsg]);
+      // Reload from DB to show the saved user message + any AI response
+      try {
+        if (activeSession === sessionId) {
+          const session = await chatApi.getSession(sessionId);
+          setMessages(session.messages || []);
+        }
+      } catch {
+        // Last resort: keep what we have
+      }
     } finally {
-      setAiTyping(false);
+      // Only clear typing state if still typing for this session
+      setTypingSession(prev => {
+        if (prev === sessionId) {
+          setAiTyping(false);
+          return null;
+        }
+        return prev;
+      });
     }
   };
+
+  const isSessionTyping = typingSession === activeSession;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -205,7 +246,7 @@ export default function ChatTab() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {messages.length === 0 && !aiTyping && (
+          {messages.length === 0 && !isSessionTyping && (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <span className="text-5xl mb-4">🏎️</span>
               <h3 className="text-xl font-bold text-gray-200 mb-2">
@@ -258,7 +299,7 @@ export default function ChatTab() {
             </div>
           ))}
 
-          {aiTyping && (
+          {isSessionTyping && (
             <div className="flex justify-start">
               <div className="max-w-2xl px-4 py-3 rounded-2xl bg-gray-700 text-gray-100 rounded-bl-md">
                 <div className="flex items-center gap-2">
@@ -286,12 +327,12 @@ export default function ChatTab() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask about F1..."
-              disabled={aiTyping}
+              disabled={isSessionTyping}
               className="flex-1 px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-500 focus:outline-none focus:border-purple-500 disabled:opacity-50"
             />
             <button
               onClick={sendMessage}
-              disabled={!input.trim() || aiTyping}
+              disabled={!input.trim() || isSessionTyping}
               className="px-5 py-2 bg-purple-700 hover:bg-purple-600 disabled:bg-gray-600 text-white rounded-lg transition font-medium"
             >
               Send

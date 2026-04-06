@@ -123,6 +123,53 @@ async def delete_session(
 # ── Chat Messages ──
 
 
+@router.post("/sessions/{session_id}/generate")
+async def generate_response(
+    session_id: int,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate AI response for the last user message in a session."""
+    result = await db.execute(
+        select(ChatSession)
+        .where(ChatSession.id == session_id, ChatSession.user_id == user.id)
+        .options(selectinload(ChatSession.messages))
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if not session.messages:
+        raise HTTPException(status_code=400, detail="No messages in session")
+
+    last_msg = session.messages[-1]
+    if last_msg.role != "user":
+        raise HTTPException(status_code=400, detail="Last message is not from user")
+
+    # Build conversation context (last 20 messages)
+    messages_context = []
+    for m in session.messages[-20:]:
+        messages_context.append({"role": m.role, "content": m.content})
+
+    ai_content = await _generate_chat_response(last_msg.content, messages_context)
+
+    ai_msg = ChatMessage(session_id=session_id, role="assistant", content=ai_content)
+    db.add(ai_msg)
+    session.updated_at = datetime.utcnow()
+    await db.flush()
+    await db.refresh(session)
+    await db.refresh(ai_msg)
+
+    return {
+        "message": {
+            "id": ai_msg.id,
+            "role": ai_msg.role,
+            "content": ai_msg.content,
+            "created_at": ai_msg.created_at.isoformat(),
+        }
+    }
+
+
 @router.post("/sessions/{session_id}/messages")
 async def send_message(
     session_id: int,
@@ -130,10 +177,12 @@ async def send_message(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Send a message and get an AI response."""
+    """Send a message and get an AI response, or save only if save_only flag."""
     content = body.get("content", "").strip()
     if not content:
         raise HTTPException(status_code=400, detail="Message content is required")
+
+    save_only = body.get("save_only", False)
 
     # Verify session ownership
     result = await db.execute(
@@ -154,6 +203,19 @@ async def send_message(
     if session.title == "New Chat":
         session.title = content[:50] + ("..." if len(content) > 50 else "")
         session.updated_at = datetime.utcnow()
+        await db.flush()
+
+    # If save_only, just return the saved message
+    if save_only:
+        await db.refresh(user_msg)
+        return {
+            "message": {
+                "id": user_msg.id,
+                "role": user_msg.role,
+                "content": user_msg.content,
+                "created_at": user_msg.created_at.isoformat(),
+            }
+        }
 
     # Build conversation context for AI (last 20 messages)
     messages_context = []
