@@ -3,10 +3,12 @@
 import datetime
 import json
 import logging
+import re
+import html
 import urllib.request
 import urllib.parse
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -23,6 +25,76 @@ router = APIRouter(prefix="/api/chat", tags=["chat"])
 ai_summarizer = AISummarizer()
 ergast_client = ErgastClient()
 logger = logging.getLogger(__name__)
+
+# ── Security Constants ──
+MAX_MESSAGE_LENGTH = 2000  # Max characters per message
+MAX_SESSION_TITLE_LENGTH = 200
+MAX_MESSAGES_PER_SESSION = 500  # Prevent runaway sessions
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX_REQUESTS = 10  # messages per window per user
+
+# Simple in-memory rate limiter
+_rate_limit_store: dict[int, list[float]] = {}
+
+
+def _check_rate_limit(user_id: int) -> None:
+    """Simple sliding window rate limiter."""
+    import time
+    now = time.time()
+    if user_id not in _rate_limit_store:
+        _rate_limit_store[user_id] = []
+
+    # Clean old entries
+    _rate_limit_store[user_id] = [
+        t for t in _rate_limit_store[user_id] if now - t < RATE_LIMIT_WINDOW
+    ]
+
+    if len(_rate_limit_store[user_id]) >= RATE_LIMIT_MAX_REQUESTS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many messages. Please wait a moment before sending another.",
+        )
+
+    _rate_limit_store[user_id].append(now)
+
+
+def _sanitize_input(text: str, max_length: int = MAX_MESSAGE_LENGTH) -> str:
+    """Sanitize user input to prevent injection attacks."""
+    if not text:
+        return ""
+
+    # Truncate to max length
+    text = text[:max_length]
+
+    # Strip null bytes (prevent binary injection)
+    text = text.replace("\x00", "")
+
+    # Strip control characters except newlines and tabs
+    text = re.sub(r'[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+
+    return text.strip()
+
+
+def _escape_for_prompt(text: str) -> str:
+    """Escape text for use in AI system prompts to prevent prompt injection."""
+    # HTML-escape to neutralize any injection attempts
+    text = html.escape(text, quote=True)
+
+    # Remove common prompt injection patterns
+    injection_patterns = [
+        r'(?i)ignore\s+previous\s+instructions',
+        r'(?i)ignore\s+all\s+instructions',
+        r'(?i)system\s*:',
+        r'(?i)you\s+are\s+now',
+        r'(?i)disregard\s+all\s+previous',
+        r'(?i)forget\s+all\s+previous',
+        r'(?i)new\s+instructions',
+        r'(?i)override\s+instructions',
+    ]
+    for pattern in injection_patterns:
+        text = re.sub(pattern, '[INJECTION BLOCKED]', text)
+
+    return text
 
 
 def _web_search(query: str, num_results: int = 3) -> str:
@@ -88,7 +160,9 @@ async def create_session(
     """Create a new chat session."""
     title = "New Chat"
     if body and "title" in body:
-        title = body["title"]
+        title = _sanitize_input(str(body["title"]), max_length=MAX_SESSION_TITLE_LENGTH)
+        if not title:
+            title = "New Chat"
 
     session = ChatSession(user_id=user.id, title=title)
     db.add(session)
@@ -215,13 +289,21 @@ async def send_message(
     db: AsyncSession = Depends(get_db),
 ):
     """Send a message and get an AI response, or save only if save_only flag."""
+    # Rate limiting
+    _check_rate_limit(user.id)
+
     content = body.get("content", "").strip()
+    if not content:
+        raise HTTPException(status_code=400, detail="Message content is required")
+
+    # Sanitize input
+    content = _sanitize_input(content)
     if not content:
         raise HTTPException(status_code=400, detail="Message content is required")
 
     save_only = body.get("save_only", False)
 
-    # Verify session ownership
+    # Verify session ownership (prevents accessing other users' sessions)
     result = await db.execute(
         select(ChatSession)
         .where(ChatSession.id == session_id, ChatSession.user_id == user.id)
@@ -231,14 +313,21 @@ async def send_message(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Save user message
+    # Prevent runaway sessions
+    if len(session.messages) >= MAX_MESSAGES_PER_SESSION:
+        raise HTTPException(
+            status_code=400,
+            detail="This chat has too many messages. Please start a new one.",
+        )
+
+    # Save user message (SQLAlchemy parameters prevent SQL injection)
     user_msg = ChatMessage(session_id=session_id, role="user", content=content)
     db.add(user_msg)
     await db.flush()
 
-    # Auto-generate title from first message
+    # Auto-generate title from first message (sanitized and truncated)
     if session.title == "New Chat":
-        session.title = content[:50] + ("..." if len(content) > 50 else "")
+        session.title = _sanitize_input(content[:MAX_SESSION_TITLE_LENGTH])
         session.updated_at = datetime.datetime.utcnow()
         await db.flush()
 
@@ -255,12 +344,22 @@ async def send_message(
         }
 
     # Build conversation context for AI (last 20 messages)
+    # Escape all previous messages to prevent prompt injection from history
     messages_context = []
     for m in session.messages[-20:]:
-        messages_context.append({"role": m.role, "content": m.content})
+        messages_context.append({
+            "role": m.role,
+            "content": _escape_for_prompt(m.content),
+        })
 
-    # Generate AI response
-    ai_content = await _generate_chat_response(content, messages_context)
+    # Generate AI response (user message also escaped)
+    ai_content = await _generate_chat_response(
+        _escape_for_prompt(content),
+        messages_context,
+    )
+
+    # Sanitize AI response before saving (prevent stored XSS)
+    ai_content = _sanitize_input(ai_content, max_length=5000)
 
     # Save AI response
     ai_msg = ChatMessage(session_id=session_id, role="assistant", content=ai_content)

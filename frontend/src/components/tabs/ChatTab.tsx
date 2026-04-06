@@ -365,7 +365,19 @@ export default function ChatTab() {
                   <p className="text-sm leading-relaxed">{msg.content}</p>
                 ) : (
                   <div className="markdown-content text-sm leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      allowedElements={[
+                        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                        'p', 'br', 'hr',
+                        'strong', 'em', 'del', 'code',
+                        'ul', 'ol', 'li',
+                        'blockquote',
+                        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                        'a',
+                      ]}
+                      unwrapDisallowed={true}
+                    >
                       {msg.content}
                     </ReactMarkdown>
                   </div>
