@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { useAuth } from '../../contexts/AuthContext';
 import { chatApi } from '../../services/api';
 import type { ChatSession, ChatMessage } from '../../types/api';
@@ -243,7 +245,15 @@ export default function ChatTab() {
                     : 'bg-gray-700 text-gray-100 rounded-bl-md'
                 }`}
               >
-                <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                {msg.role === 'user' ? (
+                  <p className="text-sm leading-relaxed">{msg.content}</p>
+                ) : (
+                  <div className="markdown-content text-sm leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {msg.content}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           ))}
