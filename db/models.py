@@ -72,6 +72,17 @@ class RaceCache(Base):
     cached_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
 
+class AICache(Base):
+    """Generic cache for AI-generated responses (race summaries, retrospectives, etc.)."""
+    __tablename__ = "ai_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cache_key = Column(String(500), unique=True, nullable=False, index=True)  # e.g., "race_2024_1", "retro_2024"
+    response_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
 

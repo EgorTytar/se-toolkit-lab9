@@ -139,7 +139,7 @@ class AISummarizer:
                 model=self.model,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=1024,
+                max_tokens=512,
             )
             content = response.choices[0].message.content
             return content or "I'm sorry, I couldn't generate a response for that."
