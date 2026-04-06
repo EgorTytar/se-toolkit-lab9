@@ -20,6 +20,7 @@ from endpoints.auth import router as auth_router
 from endpoints.users import router as users_router
 from endpoints.reminders import router as reminders_router
 from endpoints.favorites import router as favorites_router
+from endpoints.chat import router as chat_router
 from services.scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -80,6 +81,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(reminders_router)
 app.include_router(favorites_router)
+app.include_router(chat_router)
 
 # Serve static files (React frontend build output)
 app.mount("/assets", StaticFiles(directory="static/dist/assets"), name="assets")
