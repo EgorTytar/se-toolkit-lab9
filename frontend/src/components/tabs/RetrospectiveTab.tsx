@@ -8,6 +8,7 @@ interface RetrospectiveData {
   year: number;
   total_races: number;
   races_completed: number;
+  is_ongoing: boolean;
   champion: { driver_name: string; constructor: string; points: number } | null;
   constructors_champion: { constructor: string; points: number } | null;
   retrospective: string;
@@ -116,12 +117,17 @@ export default function RetrospectiveTab() {
         <>
           {/* Season Overview Banner */}
           <div className="bg-gray-800 rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <h2 className="text-2xl font-bold mb-2">{data.year} F1 Season Retrospective</h2>
+            <h2 className="text-2xl font-bold mb-2">
+              {data.year} F1 Season Retrospective
+              {data.is_ongoing && (
+                <span className="ml-3 text-sm font-normal text-yellow-400">(Season In Progress)</span>
+              )}
+            </h2>
             <div className="flex flex-wrap gap-4 text-sm text-gray-400">
               <span>🏁 {data.total_races} races ({data.races_completed} completed)</span>
               {data.champion && (
                 <span>
-                  🏆 Champion:{' '}
+                  {data.is_ongoing ? '🏆 Standings Leader:' : '🏆 Champion:'}{' '}
                   <Link to={`/driver/${data.champion.driver_name.toLowerCase().replace(/ /g, '_')}`} className="text-purple-400 hover:underline">
                     {data.champion.driver_name}
                   </Link>{' '}
@@ -130,7 +136,7 @@ export default function RetrospectiveTab() {
               )}
               {data.constructors_champion && (
                 <span>
-                  🏅 Constructors:{' '}
+                  {data.is_ongoing ? '🏅 Constructors Standings:' : '🏅 Constructors:'}{' '}
                   {data.constructors_champion.constructor} — {data.constructors_champion.points} pts
                 </span>
               )}

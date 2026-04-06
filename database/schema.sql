@@ -71,3 +71,14 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 
 CREATE INDEX idx_chat_messages_session ON chat_messages (session_id);
 CREATE INDEX idx_chat_messages_created ON chat_messages (created_at);
+
+CREATE TABLE IF NOT EXISTS ai_cache (
+    id              SERIAL PRIMARY KEY,
+    cache_key       VARCHAR(500)    NOT NULL UNIQUE,
+    response_json   TEXT            NOT NULL,
+    created_at      TIMESTAMP       NOT NULL DEFAULT NOW(),
+    expires_at      TIMESTAMP       NOT NULL
+);
+
+CREATE INDEX idx_ai_cache_key ON ai_cache (cache_key);
+CREATE INDEX idx_ai_cache_expires ON ai_cache (expires_at);

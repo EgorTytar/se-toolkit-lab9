@@ -14,8 +14,8 @@ from models.schemas import AIResponse, ErrorResponse, RaceSummaryResponse
 from services.ai_assistant import AISummarizer
 from services.ergast_client import ErgastClient
 from services.data_parser import format_race_data
-from db.database import init_db, close_db
-from db.models import User, UserFavorite, Reminder, RaceCache, ChatSession, ChatMessage  # noqa: F401
+from db.database import init_db, close_db, async_session
+from db.models import User, UserFavorite, Reminder, RaceCache, ChatSession, ChatMessage, AICache  # noqa: F401
 from endpoints.auth import router as auth_router
 from endpoints.users import router as users_router
 from endpoints.reminders import router as reminders_router
@@ -23,6 +23,7 @@ from endpoints.favorites import router as favorites_router
 from endpoints.chat import router as chat_router
 from endpoints.retrospective import router as retrospective_router
 from services.scheduler import start_scheduler, stop_scheduler
+from services.cache_service import get_cached_response, cache_response, CACHE_TTL_RACE_SUMMARY, CACHE_TTL_RETROSPECTIVE
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -470,11 +471,27 @@ async def _build_future_race_preview(year: int, round: int, user_query: str) -> 
 
 
 async def _build_response(race_data: dict, user_query: str) -> RaceSummaryResponse:
-    """Shared logic: format race data and generate AI summary."""
+    """Shared logic: check cache first, then format race data and generate AI summary."""
+    # Build cache key
+    cache_key = f"race_{race_data['season']}_{race_data['round']}_{user_query}"
+
+    # Check cache (create a short-lived session for cache lookup)
+    cached = None
+    try:
+        async with async_session() as db:
+            cached = await get_cached_response(db, cache_key)
+            await db.commit()
+    except Exception as e:
+        logger.warning(f"Cache read failed: {e}")
+
+    if cached:
+        return RaceSummaryResponse(**cached)
+
+    # Generate fresh AI response
     race_text = format_race_data(race_data)
     ai_result = await ai_summarizer.summarize(race_text, user_query)
 
-    return RaceSummaryResponse(
+    response = RaceSummaryResponse(
         race_name=race_data["race_name"],
         circuit=race_data["circuit"],
         date=race_data["date"],
@@ -482,6 +499,16 @@ async def _build_response(race_data: dict, user_query: str) -> RaceSummaryRespon
         round=race_data["round"],
         ai_response=AIResponse(**ai_result),
     )
+
+    # Cache the response (best effort)
+    try:
+        async with async_session() as db:
+            await cache_response(db, cache_key, response.model_dump(), CACHE_TTL_RACE_SUMMARY)
+            await db.commit()
+    except Exception as e:
+        logger.warning(f"Cache write failed: {e}")
+
+    return response
 
 
 def _build_basic_results(race_data: dict) -> dict:
