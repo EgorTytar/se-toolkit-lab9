@@ -112,31 +112,56 @@ export default function LatestRaceTab() {
         <p className="text-gray-400">{data.circuit} • {data.date}</p>
       </div>
 
-      {/* Podium */}
+      {/* Podium — 2nd, 1st, 3rd order */}
       {results?.podium && results.podium.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {results.podium.map((r, i) => {
-            const medalColors = [
-              'border-yellow-500 bg-yellow-900/20',
-              'border-gray-400 bg-gray-700/40',
-              'border-amber-700 bg-amber-900/20',
-            ];
-            const medalEmojis = ['🥇', '🥈', '🥉'];
-            return (
-              <div key={r.position} className={`rounded-lg p-4 border-2 ${medalColors[i]}`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-2xl">{medalEmojis[i]}</span>
-                  <span className="font-bold text-lg">
-                    <Link to={`/driver/${r.driver_id}`} className="hover:underline">
-                      {r.name}
-                    </Link>
-                  </span>
-                </div>
-                <div className="text-sm text-gray-400">{r.constructor}</div>
-                <div className="text-sm text-gray-400 mt-1">{r.points} pts</div>
+        <div className="flex items-end justify-center gap-3">
+          {/* 2nd Place */}
+          {results.podium[1] && (
+            <div className="flex-1 max-w-xs rounded-lg p-4 border-2 border-gray-400 bg-gray-700/40">
+              <div className="flex flex-col items-center">
+                <span className="text-2xl">🥈</span>
+                <span className="text-lg font-bold mt-1">
+                  <Link to={`/driver/${results.podium[1].driver_id}`} className="hover:underline">
+                    {results.podium[1].name}
+                  </Link>
+                </span>
+                <span className="text-sm text-gray-400">{results.podium[1].constructor}</span>
+                <span className="text-sm text-gray-400 mt-1">{results.podium[1].points} pts</span>
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {/* 1st Place — bigger */}
+          {results.podium[0] && (
+            <div className="flex-1 max-w-xs rounded-lg p-5 border-2 border-yellow-500 bg-yellow-900/20 -mt-4">
+              <div className="flex flex-col items-center">
+                <span className="text-3xl">🥇</span>
+                <span className="text-xl font-bold mt-1">
+                  <Link to={`/driver/${results.podium[0].driver_id}`} className="hover:underline">
+                    {results.podium[0].name}
+                  </Link>
+                </span>
+                <span className="text-sm text-gray-400">{results.podium[0].constructor}</span>
+                <span className="text-sm text-gray-400 mt-1">{results.podium[0].points} pts</span>
+              </div>
+            </div>
+          )}
+
+          {/* 3rd Place */}
+          {results.podium[2] && (
+            <div className="flex-1 max-w-xs rounded-lg p-4 border-2 border-amber-700 bg-amber-900/20">
+              <div className="flex flex-col items-center">
+                <span className="text-2xl">🥉</span>
+                <span className="text-lg font-bold mt-1">
+                  <Link to={`/driver/${results.podium[2].driver_id}`} className="hover:underline">
+                    {results.podium[2].name}
+                  </Link>
+                </span>
+                <span className="text-sm text-gray-400">{results.podium[2].constructor}</span>
+                <span className="text-sm text-gray-400 mt-1">{results.podium[2].points} pts</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
