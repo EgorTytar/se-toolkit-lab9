@@ -47,7 +47,7 @@ class TestHealth:
         r = api.get(f"{base}/")
         assert r.status_code == 200
         assert "text/html" in r.headers["content-type"]
-        assert "F1 Race Assistant" in r.text
+        assert "F1 Assistant" in r.text
 
 
 # ── Latest Race ──
@@ -242,12 +242,13 @@ class TestDriverPages:
 class TestUI:
     def test_html_contains_f1_assistant(self, api, base):
         r = api.get(f"{base}/")
-        assert "F1 Race Assistant" in r.text
+        assert "F1 Assistant" in r.text
 
-    def test_html_contains_driver_link(self, api, base):
-        """The HTML page should reference the driver page section."""
+    def test_html_contains_react_root(self, api, base):
+        """The HTML should contain the React root div and script."""
         r = api.get(f"{base}/")
-        assert "driver-page" in r.text or "openDriver" in r.text
+        assert 'id="root"' in r.text
+        assert '<script type="module"' in r.text
 
 
 # ── Multi-race consistency ──

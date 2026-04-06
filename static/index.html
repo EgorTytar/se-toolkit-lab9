@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1 Race Assistant</title>
+  <title>F1 Race Assistant v2.1</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏎️</text></svg>">
   <style>
     :root {
@@ -55,6 +55,8 @@
     /* Auth UI */
     .auth-section { display: none; }
     .auth-section.visible { display: block; }
+    .season-section { display: none; }
+    .season-section.visible { display: block; }
     .auth-forms { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
     .auth-card {
       padding: 1.5rem; background: var(--surface); border: 1px solid var(--border);
@@ -84,6 +86,16 @@
       transition: transform 0.2s; padding: 0.25rem;
     }
     .btn-fav:hover { transform: scale(1.2); }
+
+    /* Circuit page */
+    .circuit-page { display: none; }
+    .circuit-page.visible { display: block; }
+    .circuit-info-card {
+      padding: 1.25rem; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; margin-bottom: 1.5rem;
+    }
+    .circuit-info-card h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .circuit-info-card .meta { display: flex; flex-wrap: wrap; gap: 1rem; font-size: 0.85rem; color: var(--text-muted); }
 
     /* Reminders UI */
     .reminders-section { display: none; }
@@ -135,9 +147,8 @@
 
     /* Year selector */
     .year-select {
-      display: none; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
+      display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;
     }
-    .year-select.visible { display: flex; flex-wrap: wrap; }
     .year-select label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
     .year-select input {
       width: 100px; padding: 0.5rem 0.75rem; background: var(--surface);
@@ -147,6 +158,11 @@
     .year-select input:focus { border-color: var(--red); }
 
     /* Standings tables */
+    /* Season header and race list visibility */
+    .season-header { display: none; }
+    .season-header.visible { display: block; }
+    .race-list { display: none; }
+    .race-list.visible { display: block; }
     .standings-section { display: none; }
     .standings-section.visible { display: block; }
     .standings-controls {
@@ -245,18 +261,20 @@
     .race-item .arrow { color: var(--text-muted); font-size: 0.8rem; transition: transform 0.25s; }
     .race-item.expanded .arrow { transform: rotate(90deg); }
 
-    /* Inline race detail — slides right under the race item */
+    /* Inline race detail — appears directly under the race item */
     .race-detail {
-      max-height: 0; overflow: hidden; opacity: 0;
-      padding: 0 1rem; margin: 0 0 0 0.5rem;
+      display: none;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.75rem 1rem;
+      margin-top: 0.25rem;
       border-left: 2px solid var(--blue);
       background: var(--surface);
-      transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.3s ease;
     }
-    .race-detail.open {
-      max-height: 2000px; opacity: 1;
-      padding: 1rem;
+    .race-detail.show {
+      display: block !important;
     }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     .race-detail h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.4rem; }
     .race-detail .meta { display: flex; gap: 1rem; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; flex-wrap: wrap; }
@@ -398,18 +416,20 @@
     </div>
 
     <!-- Season Browse Tab -->
-    <div class="year-select" id="section-season-controls">
-      <label for="input-year">Season Year</label>
-      <input type="number" id="input-year" placeholder="2024" min="1950" max="2030">
-      <button class="btn-primary" id="btn-season" onclick="fetchSeason()">Show Races</button>
-    </div>
+    <div class="season-section" id="section-season">
+      <div class="year-select" id="section-season-controls">
+        <label for="input-year">Season Year</label>
+        <input type="number" id="input-year" placeholder="2024" min="1950" max="2030">
+        <button class="btn-primary" id="btn-season" onclick="fetchSeason()">Show Races</button>
+      </div>
 
-    <div id="season-status" class="status"></div>
-    <div class="season-header" id="season-header">
-      <h2 id="season-title"></h2>
-      <span id="season-count"></span>
+      <div id="season-status" class="status"></div>
+      <div class="season-header" id="season-header">
+        <h2 id="season-title"></h2>
+        <span id="season-count"></span>
+      </div>
+      <div class="race-list" id="race-list"></div>
     </div>
-    <div class="race-list" id="race-list"></div>
 
     <!-- Standings Tab -->
     <div class="standings-section" id="section-standings">
@@ -499,6 +519,13 @@
       <div id="driver-content"></div>
     </div>
 
+    <!-- Circuit Detail Page -->
+    <div class="circuit-page" id="section-circuit">
+      <div class="back-btn" onclick="goBackFromCircuit()" style="margin-bottom:1rem;">← Back</div>
+      <div id="circuit-status" class="status"></div>
+      <div id="circuit-content"></div>
+    </div>
+
     <footer>
       Data from <a href="https://api.jolpi.ca/ergast/f1/" target="_blank">Jolpica-F1</a>
       · AI by <a href="https://qwen.ai" target="_blank">Qwen</a>
@@ -512,26 +539,49 @@
     let currentStandingsType = 'drivers';
 
     function switchTab(tab) {
-      document.getElementById('tab-latest').classList.toggle('active', tab === 'latest');
-      document.getElementById('tab-season').classList.toggle('active', tab === 'season');
-      document.getElementById('tab-standings').classList.toggle('active', tab === 'standings');
-      document.getElementById('tab-reminders').classList.toggle('active', tab === 'reminders');
-      document.getElementById('tab-auth').classList.toggle('active', tab === 'auth');
-      document.getElementById('section-latest').classList.toggle('visible', tab === 'latest');
-      document.getElementById('section-season-controls').classList.toggle('visible', tab === 'season');
-      document.getElementById('section-standings').classList.toggle('visible', tab === 'standings');
-      document.getElementById('section-reminders').classList.toggle('visible', tab === 'reminders');
-      document.getElementById('section-auth').classList.toggle('visible', tab === 'auth');
+      // Hide all sections first
+      document.getElementById('section-latest').classList.remove('visible');
+      document.getElementById('section-season').classList.remove('visible');
+      document.getElementById('section-standings').classList.remove('visible');
+      document.getElementById('section-reminders').classList.remove('visible');
+      document.getElementById('section-auth').classList.remove('visible');
       document.getElementById('section-driver').classList.remove('visible');
-      // Clear season list when leaving the tab
-      if (tab !== 'season') {
-        document.getElementById('race-list').classList.remove('visible');
-        document.getElementById('season-header').classList.remove('visible');
+      document.getElementById('section-circuit').classList.remove('visible');
+      // Clear open race details
+      document.querySelectorAll('.race-detail.open').forEach(d => d.classList.remove('open'));
+      // Deactivate all tabs
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+      // Activate requested tab and section
+      const tabEl = document.getElementById(`tab-${tab}`);
+      if (tabEl) tabEl.classList.add('active');
+
+      switch (tab) {
+        case 'latest':
+          document.getElementById('section-latest').classList.add('visible');
+          fetchLatest();
+          break;
+        case 'season':
+          document.getElementById('section-season').classList.add('visible');
+          // Ensure inner elements are visible if they have content
+          const header = document.getElementById('season-header');
+          const list = document.getElementById('race-list');
+          if (header && header.textContent.trim()) header.classList.add('visible');
+          if (list && list.innerHTML.trim()) list.classList.add('visible');
+          document.getElementById('input-year').focus();
+          break;
+        case 'standings':
+          document.getElementById('section-standings').classList.add('visible');
+          document.getElementById('input-standings-year').focus();
+          break;
+        case 'reminders':
+          document.getElementById('section-reminders').classList.add('visible');
+          loadRemindersTab();
+          break;
+        case 'auth':
+          document.getElementById('section-auth').classList.add('visible');
+          break;
       }
-      // Load reminders when tab is opened
-      if (tab === 'reminders') loadRemindersTab();
-      if (tab === 'season') document.getElementById('input-year').focus();
-      if (tab === 'standings') document.getElementById('input-standings-year').focus();
     }
 
     // ── Status helpers ──
@@ -599,6 +649,10 @@
       const podium = data.podium || [];
       const btnId = `btn-ai-${year}-${round}`;
       const isFuture = data.is_future_race;
+      const cId = data.circuit_id || '';
+      const circuitHtml = cId
+        ? `<span class="driver-link" onclick="goToCircuit('${cId}')">${data.circuit}</span>`
+        : data.circuit;
 
       const detail = document.createElement('div');
       detail.className = 'race-detail';
@@ -608,7 +662,7 @@
         detail.innerHTML = `
           <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
-            <span>📍 ${data.circuit}</span>
+            <span>📍 ${circuitHtml}</span>
             <span>📅 ${data.date}</span>
             <span>🏁 Round ${round}</span>
           </div>
@@ -616,6 +670,7 @@
             <p style="color:var(--text-muted);font-size:0.88rem;line-height:1.7;">
               This race has not taken place yet. Results and analysis will be available after the race weekend.
             </p>
+            <button class="btn-primary" style="margin-top:0.5rem;font-size:0.78rem;padding:0.35rem 0.75rem;" onclick="addReminderFromDetail(${year}, ${round})">🔔 Add Reminder</button>
           </div>
           <div class="action-bar">
             <button class="btn-ai" id="${btnId}" onclick="askAI(${year}, ${round})">
@@ -629,7 +684,7 @@
         detail.innerHTML = `
           <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
           <div class="meta">
-            <span>📍 ${data.circuit}</span>
+            <span>📍 ${circuitHtml}</span>
             <span>📅 ${data.date}</span>
             <span>🏁 Round ${round}</span>
             ${data.total_drivers ? `<span>👥 ${data.total_drivers} drivers</span>` : ''}
@@ -652,57 +707,72 @@
     function toggleDetail(year, round, el) {
       const detail = document.getElementById(`detail-${year}-${round}`);
       const item = document.getElementById(`race-item-${year}-${round}`);
-      const wasOpen = detail && detail.classList.contains('open');
+      const isVisible = detail && detail.classList.contains('show');
+
+      console.log(`toggleDetail(${year}, ${round})`, { detail, item, isVisible });
 
       // Close all open details
-      document.querySelectorAll('.race-detail.open').forEach(d => d.classList.remove('open'));
+      document.querySelectorAll('.race-detail.show').forEach(d => d.classList.remove('show'));
       document.querySelectorAll('.race-item.expanded').forEach(i => {
         i.classList.remove('expanded', 'selected');
       });
 
-      if (!wasOpen) {
-        // Create detail if it doesn't exist
-        if (!detail) {
-          selectRace(year, round, el);
-        } else {
-          detail.classList.add('open');
-          item.classList.add('expanded', 'selected');
+      if (!isVisible && detail && item) {
+        detail.classList.add('show');
+        item.classList.add('expanded', 'selected');
+        try {
+          loadRaceDetail(year, round, detail);
+        } catch(e) {
+          console.error('loadRaceDetail error:', e);
         }
       }
     }
 
-    // ── Select race → load basic info ──
-    async function selectRace(year, round, el) {
-      const item = document.getElementById(`race-item-${year}-${round}`);
-      if (!item) return;
-
-      item.classList.add('expanded', 'selected');
-
-      // Insert detail element right after the race item
-      const detail = buildRaceDetail(year, round, {
-        race_name: 'Loading...', circuit: '', date: '',
-        total_drivers: 0, podium: [], winner: null,
-      });
-      item.after(detail);
-
-      // Trigger animation next frame
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          detail.classList.add('open');
-        });
-      });
-
+    async function loadRaceDetail(year, round, detail) {
+      console.log('loadRaceDetail called:', year, round, detail);
+      if (detail.dataset.loaded === 'true') return;
+      detail.innerHTML = `<div style="text-align:center;padding:1rem;"><span class="spinner"></span> Loading race data…</div>`;
       try {
         const res = await fetch(`/api/races/${year}/${round}/results`);
+        console.log('API response:', res.status);
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
         const data = await res.json();
-        const newDetail = buildRaceDetail(year, round, data);
-        detail.replaceWith(newDetail);
-        requestAnimationFrame(() => newDetail.classList.add('open'));
+        console.log('API data:', data);
+        const cId = data.circuit_id || '';
+        const circuitHtml = cId
+          ? `<span class="driver-link" onclick="goToCircuit('${cId}')">${data.circuit}</span>`
+          : data.circuit;
+        const podium = data.podium || [];
+        const podiumHtml = podium.length > 0 ? renderPodium(podium) : '';
+        detail.innerHTML = `
+          <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
+          <div class="meta">
+            <span>📍 ${circuitHtml}</span>
+            <span>📅 ${data.date}</span>
+            <span>🏁 Round ${round}</span>
+            ${data.total_drivers ? `<span>👥 ${data.total_drivers} drivers</span>` : ''}
+          </div>
+          ${podiumHtml}
+          <div class="action-bar">
+            <button class="btn-ai" id="btn-ai-${year}-${round}" onclick="askAI(${year}, ${round})">🤖 Ask AI</button>
+            <span style="font-size:0.72rem;color:var(--text-muted)">Get a detailed AI summary</span>
+          </div>
+          <div class="ai-response" id="ai-${year}-${round}"></div>
+        `;
+        detail.dataset.loaded = 'true';
       } catch (e) {
+        console.error('loadRaceDetail error:', e);
         detail.innerHTML = `<p style="padding:0.5rem 0;color:#de7b7b">Error: ${e.message}</p>`;
-        detail.classList.add('open');
       }
+    }
+
+    async function selectRace(year, round, el) {
+      const item = document.getElementById(`race-item-${year}-${round}`);
+      const detail = document.getElementById(`detail-${year}-${round}`);
+      if (!item || !detail) return;
+      item.classList.add('expanded', 'selected');
+      detail.classList.add('show');
+      await loadRaceDetail(year, round, detail);
     }
 
     // ── Ask AI ──
@@ -745,8 +815,8 @@
         const round = data.round;
 
         const detail = buildRaceDetail(season, round, data);
+        detail.classList.add('show');
         container.appendChild(detail);
-        requestAnimationFrame(() => detail.classList.add('open'));
 
         hideStatus('latest-status');
       } catch (e) {
@@ -797,21 +867,39 @@
     }
 
     function renderSchedule(data) {
-      document.getElementById('season-title').textContent = data.season + ' Season';
+      const season = parseInt(data.season);
+      document.getElementById('season-title').textContent = season + ' Season';
       document.getElementById('season-count').textContent = data.race_count + ' races';
       document.getElementById('season-header').classList.add('visible');
 
       const list = document.getElementById('race-list');
-      list.innerHTML = data.races.map(r =>
-        `<div class="race-item" onclick="toggleDetail(${data.season}, ${r.round}, this)" id="race-item-${data.season}-${r.round}">
+      list.innerHTML = '';
+      data.races.forEach(r => {
+        const cId = r.circuit_id || '';
+        const circuitHtml = cId
+          ? `<span class="driver-link" onclick="event.stopPropagation(); goToCircuit('${cId}');">${r.circuit}</span>`
+          : r.circuit;
+        // Race item
+        const div = document.createElement('div');
+        div.className = 'race-item';
+        div.id = `race-item-${season}-${r.round}`;
+        div.setAttribute('onclick', `toggleDetail(${season}, ${r.round}, this)`);
+        div.innerHTML = `
           <div class="round">${r.round}</div>
           <div class="info">
             <div class="name">${r.race_name}</div>
-            <div class="meta">${r.circuit} · ${r.date}</div>
+            <div class="meta">${circuitHtml} · ${r.date}</div>
           </div>
           <div class="arrow">▶</div>
-        </div>`
-      ).join('');
+        `;
+        list.appendChild(div);
+        // Detail element (sibling, not child)
+        const detail = document.createElement('div');
+        detail.className = 'race-detail';
+        detail.id = `detail-${season}-${r.round}`;
+        detail.innerHTML = `<div style="text-align:center;padding:1rem;"><span class="spinner"></span> Loading…</div>`;
+        list.appendChild(detail);
+      });
       list.classList.add('visible');
     }
 
@@ -1031,6 +1119,14 @@
       showAuthStatus('Logged out.', 'loading');
     }
 
+    function updateAccountSections() {
+      // Refresh favorites and reminders shown in Account tab
+      if (currentUser) {
+        loadAccountFavorites();
+        loadAccountReminders();
+      }
+    }
+
     async function loadProfile() {
       try {
         const res = await authFetch('/api/users/me');
@@ -1059,9 +1155,10 @@
         if (drivers.length === 0) {
           container.textContent = 'No favorite drivers yet. Click 🤍 on a driver page to add one.';
         } else {
-          container.innerHTML = drivers.map(f =>
-            `<span class="driver-link" style="margin-right:0.75rem;cursor:pointer;" onclick="openDriver('${f.driver_id}')">${f.driver_id}</span>`
-          ).join('');
+          container.innerHTML = drivers.map(f => {
+            const formatted = f.driver_id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+            return `<span class="driver-link" style="margin-right:0.75rem;cursor:pointer;" onclick="openDriver('${f.driver_id}')">${formatted}</span>`;
+          }).join('');
         }
       } catch (e) { container.textContent = 'Error loading favorites.'; }
     }
@@ -1186,6 +1283,7 @@
         btn.textContent = '❤️';
         btn.title = 'Remove from favorites';
       }
+      updateAccountSections();
     }
 
     async function checkDriverFav(driverId) {
@@ -1205,6 +1303,35 @@
     // ── Reminders ──
     let upcomingRaces = [];
     let reminderIdsByRound = {};
+
+    async function addReminderFromDetail(year, round) {
+      if (!getToken()) {
+        showAuthStatus('Please login first.', 'error');
+        return;
+      }
+      try {
+        const res = await authFetch('/api/reminders/', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            race_round: round,
+            race_year: year,
+            notify_before_hours: 24,
+            method: 'email'
+          })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          const msg = typeof err.detail === 'string' ? err.detail : 'Failed to set reminder';
+          showRemindersStatus('Error: ' + msg, 'error');
+          return;
+        }
+        showRemindersStatus('✓ Reminder added!', 'loading');
+        updateAccountSections();
+      } catch (e) {
+        showRemindersStatus('Error: ' + e.message, 'error');
+      }
+    }
 
     function showRemindersStatus(msg, type) {
       const el = document.getElementById('reminders-status');
@@ -1235,7 +1362,11 @@
         const schedRes = await fetch(`/api/seasons/${currentYear}/schedule`);
         if (!schedRes.ok) throw new Error('Could not load schedule');
         const schedData = await schedRes.json();
-        upcomingRaces = schedData.races.filter(r => new Date(r.date) >= new Date());
+        // Store circuit_id for clickable links
+        upcomingRaces = schedData.races.map(r => ({
+          ...r,
+          circuit_id: r.circuit_id || null,
+        })).filter(r => new Date(r.date) >= new Date());
 
         document.getElementById('rem-season-label').textContent = currentYear;
 
@@ -1267,16 +1398,21 @@
 
     function renderUpcomingRaces() {
       const container = document.getElementById('rem-races-list');
+      const currentYear = new Date().getFullYear();
       container.innerHTML = upcomingRaces.map(race => {
         const hasReminder = reminderIdsByRound[race.round] !== undefined;
         const btnClass = hasReminder ? 'rem-toggle active' : 'rem-toggle';
         const btnText = hasReminder ? '✓ Reminding' : 'Set Reminder';
+        const cId = race.circuit_id || '';
+        const circuitHtml = cId
+          ? `<span class="driver-link" onclick="goToCircuit('${cId}')">${race.circuit}</span>`
+          : race.circuit;
         return `<div class="rem-race-item">
           <div class="rem-race-info">
             <div class="race-name">
-              <span class="driver-link" onclick="goToRace(${new Date().getFullYear()}, ${race.round})">R${race.round} — ${race.race_name}</span>
+              <span class="driver-link" onclick="goToRace(${currentYear}, ${race.round})">R${race.round} — ${race.race_name}</span>
             </div>
-            <div class="race-meta">${race.circuit} · ${race.date}</div>
+            <div class="race-meta">${circuitHtml} · ${race.date}</div>
           </div>
           <button class="${btnClass}" onclick="toggleReminder(${race.round})">${btnText}</button>
         </div>`;
@@ -1322,18 +1458,18 @@
         } catch (e) { showRemindersStatus('Error: ' + e.message, 'error'); return; }
       }
       renderUpcomingRaces();
+      updateAccountSections();
     }
 
     // ── Driver pages ──
     let previousView = null;
 
-    function openDriver(driverId) {
+    async function openDriver(driverId) {
       previousView = {
         tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
         standingsYear: currentStandingsYear,
       };
-      window.location.hash = `#/driver/${driverId}`;
-      loadDriverPage(driverId);
+      await loadDriverPage(driverId);
     }
 
     function goBack() {
@@ -1356,21 +1492,134 @@
         tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
         standingsYear: currentStandingsYear,
       };
-      switchTab('season');
+      // Hide other sections first
+      document.getElementById('section-latest').classList.remove('visible');
+      document.getElementById('section-driver').classList.remove('visible');
+      document.getElementById('section-circuit').classList.remove('visible');
+      document.getElementById('section-standings').classList.remove('visible');
+      document.getElementById('section-reminders').classList.remove('visible');
+      document.getElementById('section-auth').classList.remove('visible');
+      // Show season section
+      document.getElementById('section-season').classList.add('visible');
+      // Clear previous season content
+      document.getElementById('season-header').classList.remove('visible');
+      document.getElementById('race-list').classList.remove('visible');
+      document.getElementById('race-list').innerHTML = '';
       document.getElementById('input-year').value = year;
-      // Fetch season if not loaded
+      // Deactivate all tabs then activate season
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-season').classList.add('active');
+
+      // Fetch season
       try {
         const res = await fetch(`/api/seasons/${year}/schedule`);
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
         const data = await res.json();
         renderSchedule(data);
-        // Open the specific race
-        setTimeout(() => {
-          toggleDetail(year, round, document.getElementById(`race-item-${year}-${round}`));
-        }, 100);
+
+        // Highlight and scroll to target race without auto-expanding
+        await new Promise(r => setTimeout(r, 50));
+        const raceItem = document.getElementById(`race-item-${year}-${round}`);
+        if (raceItem) {
+          raceItem.classList.add('selected');
+          raceItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       } catch (e) {
         showStatus('season-status', 'Error: ' + e.message, 'error');
       }
+    }
+
+    async function goToCircuit(circuitId) {
+      previousView = {
+        tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
+        standingsYear: currentStandingsYear,
+      };
+      await loadCircuitPage(circuitId);
+    }
+
+    function goBackFromCircuit() {
+      document.getElementById('section-circuit').classList.remove('visible');
+      if (previousView) {
+        switchTab(previousView.tab);
+        if (previousView.tab === 'standings' && previousView.standingsYear) {
+          document.getElementById('input-standings-year').value = previousView.standingsYear;
+          fetchStandingsData(previousView.standingsYear, currentStandingsType);
+        }
+      } else {
+        switchTab('latest');
+      }
+    }
+
+    async function loadCircuitPage(circuitId) {
+      // Hide all other sections
+      document.getElementById('section-latest').classList.remove('visible');
+      document.getElementById('section-season').classList.remove('visible');
+      document.getElementById('section-standings').classList.remove('visible');
+      document.getElementById('section-reminders').classList.remove('visible');
+      document.getElementById('section-auth').classList.remove('visible');
+      document.getElementById('section-driver').classList.remove('visible');
+      document.getElementById('season-header').classList.remove('visible');
+      document.getElementById('race-list').classList.remove('visible');
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+
+      document.getElementById('section-circuit').classList.add('visible');
+      const content = document.getElementById('circuit-content');
+      content.innerHTML = `<div style="text-align:center;padding:2rem;"><span class="spinner"></span> Loading circuit…</div>`;
+
+      try {
+        const res = await fetch(`/api/circuits/${circuitId}`);
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
+        const data = await res.json();
+        renderCircuitPage(data.circuit, data.recent_results, content);
+      } catch (e) {
+        content.innerHTML = `<div class="standings-empty"><div class="icon">⚠️</div><p>Error: ${e.message}</p></div>`;
+      }
+    }
+
+    function renderCircuitPage(circuit, results, container) {
+      // Results already come back most-recent-first from the API
+      let html = `
+        <div class="circuit-info-card">
+          <h2>${circuit.name}</h2>
+          <div class="meta">
+            <span>📍 ${circuit.location}, ${circuit.country}</span>
+            ${circuit.latitude ? `<span>🌐 ${circuit.latitude}, ${circuit.longitude}</span>` : ''}
+            ${circuit.url ? `<span><a href="${circuit.url}" target="_blank" style="color:var(--blue)">Wikipedia ↗</a></span>` : ''}
+          </div>
+        </div>
+      `;
+
+      if (results.length > 0) {
+        html += `
+          <h3 style="margin-bottom:0.75rem;">Recent Races</h3>
+          <table class="standings-table"><thead><tr>
+            <th>Season</th><th>Race</th><th>Winner</th><th>Team</th><th>Pts</th><th>Status</th>
+          </tr></thead><tbody>`;
+
+        results.forEach(r => {
+          const posClass = r.position <= 3 ? `p${r.position}` : '';
+          const driverLink = r.driver_id
+            ? `<span class="driver-link" onclick="openDriver('${r.driver_id}')">${r.driver_name}</span>`
+            : r.driver_name;
+          const raceLink = r.season
+            ? `<span class="driver-link" onclick="goToRace(${r.season}, ${r.round})">${r.race_name}</span>`
+            : r.race_name;
+          html += `<tr>
+            <td>${r.season}</td>
+            <td class="name">${raceLink}</td>
+            <td>${driverLink}</td>
+            <td class="team">${r.constructor}</td>
+            <td class="pts">${r.points}</td>
+            <td style="color:var(--text-muted);font-size:0.78rem;">${r.status}</td>
+          </tr>`;
+        });
+
+        html += '</tbody></table>';
+      } else {
+        html += `<div class="standings-empty"><div class="icon">🏁</div><p>No race results found for this circuit.</p></div>`;
+      }
+
+      container.innerHTML = html;
     }
 
     async function loadDriverPage(driverId) {
@@ -1379,7 +1628,7 @@
 
       // Hide all other sections
       document.getElementById('section-latest').classList.remove('visible');
-      document.getElementById('section-season-controls').classList.remove('visible');
+      document.getElementById('section-season').classList.remove('visible');
       document.getElementById('section-standings').classList.remove('visible');
       document.getElementById('season-header').classList.remove('visible');
       document.getElementById('race-list').classList.remove('visible');
@@ -1494,27 +1743,6 @@
       container.innerHTML = html;
     }
 
-    // Hash routing
-    window.addEventListener('hashchange', () => {
-      const hash = window.location.hash;
-      if (hash.startsWith('#/driver/')) {
-        const driverId = hash.replace('#/driver/', '');
-        loadDriverPage(driverId);
-      } else {
-        // Clear driver page, go back to latest
-        document.getElementById('section-driver').classList.remove('visible');
-        document.getElementById('section-latest').classList.add('visible');
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.getElementById('tab-latest').classList.add('active');
-        previousView = null;
-      }
-    });
-
-    // Handle initial hash on load
-    if (window.location.hash.startsWith('#/driver/')) {
-      const driverId = window.location.hash.replace('#/driver/', '');
-      setTimeout(() => loadDriverPage(driverId), 500);
-    }
   </script>
 </body>
 </html>

@@ -4,10 +4,11 @@ import logging
 import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from models.schemas import AIResponse, ErrorResponse, RaceSummaryResponse
 from services.ai_assistant import AISummarizer
@@ -61,23 +62,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Cache-busting middleware for React assets
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if "/assets/" in str(request.url) or str(request.url).endswith("/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+app.add_middleware(NoCacheMiddleware)
+
 # Include auth and user profile routers
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(reminders_router)
 app.include_router(favorites_router)
 
-# Serve static files (frontend UI)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Serve static files (React frontend build output)
+app.mount("/assets", StaticFiles(directory="static/dist/assets"), name="assets")
 
 ergast_client = ErgastClient()
 ai_summarizer = AISummarizer()
 
 
 @app.get("/")
-async def root() -> FileResponse:
-    """Serve the frontend UI."""
-    return FileResponse("static/index.html")
+async def root() -> HTMLResponse:
+    """Serve the React frontend UI with no-cache headers."""
+    return HTMLResponse(
+        content=open("static/dist/index.html").read(),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
 
 
 @app.get("/health")
@@ -282,6 +303,30 @@ async def get_driver_info(driver_id: str, year: int = 0) -> dict:
 
 
 @app.get(
+    "/api/circuits/{circuit_id}",
+    responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def get_circuit_details(circuit_id: str) -> dict:
+    """Get circuit info and recent race results."""
+    try:
+        info = await ergast_client.get_circuit_info(circuit_id)
+    except Exception as e:
+        logger.error("Failed to fetch circuit info for %s: %s", circuit_id, e)
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Circuit '{circuit_id}' not found")
+
+    results = []
+    try:
+        results = await ergast_client.get_circuit_recent_results(circuit_id, limit=5)
+    except Exception as e:
+        logger.warning("Could not fetch recent results for %s: %s", circuit_id, e)
+
+    return {"circuit": info, "recent_results": results}
+
+
+@app.get(
     "/api/races/{year}/{round}/results",
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
@@ -443,6 +488,7 @@ def _build_basic_results(race_data: dict) -> dict:
     return {
         "race_name": race_data["race_name"],
         "circuit": race_data["circuit"],
+        "circuit_id": race_data.get("circuit_id", ""),
         "date": race_data["date"],
         "season": race_data["season"],
         "round": race_data["round"],
@@ -466,3 +512,12 @@ def _build_basic_results(race_data: dict) -> dict:
             for p in top3
         ],
     }
+
+
+# Catch-all route for SPA routing (must be last, excludes /api routes)
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str) -> FileResponse:
+    """Serve React app for any non-API route."""
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse("static/dist/index.html")

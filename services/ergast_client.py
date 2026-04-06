@@ -46,6 +46,7 @@ class ErgastClient:
                 "round": int(r.get("round", 0)),
                 "race_name": r.get("raceName", "Unknown"),
                 "circuit": r.get("Circuit", {}).get("circuitName", "Unknown"),
+                "circuit_id": r.get("Circuit", {}).get("circuitId", ""),
                 "date": r.get("date", "Unknown"),
             }
             for r in races
@@ -129,6 +130,7 @@ class ErgastClient:
                 "round": int(race.get("round", 0)),
                 "race_name": race.get("raceName", ""),
                 "circuit": race.get("Circuit", {}).get("circuitName", ""),
+                "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
                 "date": race.get("date", ""),
                 "position": result_entry.get("position", ""),
                 "grid": int(result_entry.get("grid", 0)),
@@ -137,6 +139,69 @@ class ErgastClient:
             })
 
         return results
+
+    async def get_circuit_info(self, circuit_id: str) -> dict | None:
+        """Fetch info and recent race results for a circuit."""
+        data = await self._get(f"circuits/{circuit_id}.json")
+        try:
+            circuit = data["MRData"]["CircuitTable"]["Circuits"][0]
+        except (KeyError, IndexError):
+            return None
+
+        return {
+            "circuit_id": circuit.get("circuitId", ""),
+            "name": circuit.get("circuitName", ""),
+            "location": circuit.get("Location", {}).get("locality", ""),
+            "country": circuit.get("Location", {}).get("country", ""),
+            "latitude": circuit.get("Location", {}).get("lat", ""),
+            "longitude": circuit.get("Location", {}).get("long", ""),
+            "url": circuit.get("url", ""),
+        }
+
+    async def get_circuit_recent_results(self, circuit_id: str, limit: int = 5) -> list[dict]:
+        """Fetch up to `limit` most recent race results at a circuit.
+
+        Uses season-by-season approach since the Ergast total count
+        counts individual driver results, not unique races.
+        """
+        import datetime
+        current_year = datetime.datetime.now().year
+
+        results = []
+        # Check seasons from most recent backwards
+        for year in range(current_year, 1950, -1):
+            if len(results) >= limit:
+                break
+            try:
+                data = await self._get(f"{year}/circuits/{circuit_id}/results.json")
+                races = data["MRData"]["RaceTable"]["Races"]
+            except (KeyError, IndexError):
+                continue
+
+            for race in races:
+                if len(results) >= limit:
+                    break
+                result_entry = race.get("Results", [{}])[0]
+                if not result_entry:
+                    continue
+                driver = result_entry.get("Driver", {})
+                constructor = result_entry.get("Constructor", {})
+                results.append({
+                    "season": race.get("season", ""),
+                    "round": int(race.get("round", 0)),
+                    "race_name": race.get("raceName", ""),
+                    "date": race.get("date", ""),
+                    "position": result_entry.get("position", ""),
+                    "driver_name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
+                    "driver_id": driver.get("driverId", ""),
+                    "constructor": constructor.get("name", ""),
+                    "grid": int(result_entry.get("grid", 0)),
+                    "points": float(result_entry.get("points", 0)),
+                    "status": result_entry.get("status", ""),
+                })
+
+        # Results are already most-recent-first (we iterate years backwards)
+        return results[:limit]
 
     @staticmethod
     def _extract_race_data(data: dict) -> dict:
@@ -173,6 +238,7 @@ class ErgastClient:
             "round": int(race_table.get("round", 0)),
             "race_name": race_table.get("raceName", "Unknown"),
             "circuit": race_table.get("Circuit", {}).get("circuitName", "Unknown"),
+            "circuit_id": race_table.get("Circuit", {}).get("circuitId", ""),
             "location": race_table.get("Circuit", {}).get("Location", {}),
             "date": race_table.get("date", "Unknown"),
             "time": race_table.get("time", ""),
