@@ -121,3 +121,31 @@ class AISummarizer:
             "insights": "AI summarization unavailable — Qwen API key not configured.",
             "answer": "",
         }
+
+    async def chat_response(self, messages: list[dict]) -> str:
+        """Generate a free-form chat response (no JSON required).
+
+        Args:
+            messages: List of {role, content} dicts including system prompt.
+
+        Returns:
+            Plain text response from the AI.
+        """
+        if not self._available:
+            return "AI service is currently unavailable. Please check your API configuration."
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+            )
+            content = response.choices[0].message.content
+            return content or "I'm sorry, I couldn't generate a response for that."
+        except Exception as e:
+            logger.warning("AI chat response failed: %s", e)
+            return (
+                f"I apologize, but I'm having trouble connecting to the AI service right now. "
+                f"Please try again in a moment. (Error: {str(e)})"
+            )

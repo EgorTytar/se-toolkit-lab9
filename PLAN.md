@@ -410,32 +410,34 @@ race_cache (
 | POST | `/api/auth/login` | User login (returns JWT) |
 | GET | `/api/users/me` | Current user profile |
 | PUT | `/api/users/me` | Update profile |
-| GET | `/api/users/me/favorites` | Get favorite drivers/teams |
-| POST | `/api/users/me/favorites` | Add favorite |
+| GET | `/api/users/me/favorites/` | Get favorite drivers |
+| POST | `/api/users/me/favorites/` | Add favorite |
 | DELETE | `/api/users/me/favorites/{id}` | Remove favorite |
-| GET | `/api/reminders` | List user's race reminders |
-| POST | `/api/reminders` | Create a reminder |
+| GET | `/api/reminders/` | List user's race reminders |
+| POST | `/api/reminders/` | Create a reminder |
+| PUT | `/api/reminders/{id}` | Update a reminder |
 | DELETE | `/api/reminders/{id}` | Delete a reminder |
-| GET | `/api/seasons/{year}/retrospective` | AI summary of entire season |
-| GET | `/api/races/next/preview` | Preview of next scheduled race |
-| POST | `/api/ask` | Free-form Q&A about F1 data |
-| GET | `/api/compare/drivers` | Head-to-head driver comparison |
-| GET | `/api/compare/constructors` | Head-to-head team comparison |
+| GET | `/api/chat/sessions` | List user's chat sessions |
+| POST | `/api/chat/sessions` | Create new chat session |
+| GET | `/api/chat/sessions/{id}` | Get session with messages |
+| DELETE | `/api/chat/sessions/{id}` | Delete session |
+| POST | `/api/chat/sessions/{id}/messages` | Save user message |
+| POST | `/api/chat/sessions/{id}/generate` | Generate AI response |
 | GET | `/api/circuits/{circuit_id}` | Circuit information and stats |
+| GET | `/api/seasons/{year}/schedule` | Season race schedule |
 
 ### Implementation Order
 
-1. **Database (PostgreSQL)** — foundation for all V2 features: users, favorites, reminders, cache
-2. **Personal Accounts** — registration, login (JWT), profiles — unlocks personalized features
-3. **Race Reminders** — notification scheduler, email/push integration, user-configured alerts
-4. **Upcoming Race Preview** — natural extension of existing future race handling
-5. **Season Retrospective** — aggregates all races in a season into AI narrative
-6. **Free-Form Q&A** — builds on existing AI summarizer with conversational context
-7. **Driver Head-to-Head** — leverages existing driver pages infrastructure
-8. **Circuit Pages** — new data from Ergast, new UI section
-9. **Team Comparison** — similar to driver comparison
-10. **Championship Prediction** — AI-powered predictions
-11. **Live Race Weekend** — requires polling or webhook for session updates
+1. **Database (PostgreSQL)** — ✅ DONE: foundation for all V2 features
+2. **Personal Accounts** — ✅ DONE: registration, login (JWT), profiles
+3. **Race Reminders** — ✅ DONE: email scheduler, user-configured alerts
+4. **AI Assistant Chat** — ✅ DONE: free-form Q&A with verified data + web search
+5. **Frontend Migration** — ✅ DONE: React 18 + TypeScript + Tailwind CSS
+6. **Season Retrospective** — 🔲 Planned
+7. **Driver Head-to-Head** — 🔲 Planned
+8. **Team Comparison** — 🔲 Planned
+9. **Championship Prediction** — 🔲 Planned
+10. **Live Race Weekend** — 🔲 Planned
 
 ---
 
@@ -450,6 +452,9 @@ race_cache (
 | User data breaches | Critical | Password hashing (bcrypt), JWT expiry, HTTPS |
 | Notification spam | Medium | User-configurable limits, unsubscribe option |
 | Database migration failures | Medium | Alembic with rollback support |
+| Prompt injection attacks | Medium | Input sanitization, pattern blocking, HTML escaping |
+| XSS in chat messages | Medium | Markdown element whitelist, script/iframe blocking |
+| Chat API abuse | Medium | Rate limiting (10 msg/min), session max (500 msgs) |
 
 ---
 
@@ -466,10 +471,14 @@ Option B — Docker (recommended):
 2. Open http://localhost:8000
 
 Demo flow:
-1. Latest Race tab → auto-loaded race summary
-2. Browse Seasons → enter 2024 → click any race → inline AI summary
-3. Standings → 2024 → Drivers table → click a driver name → driver page
-4. Show error handling → enter year 1940 or 2099 → friendly message
+1. Latest Race tab → see podium cards + race results
+2. Click 🤖 Get AI Summary → generates detailed analysis
+3. Browse Seasons → enter 2024 → click any race → inline AI summary
+4. Standings → 2024 → Drivers table → click a driver name → driver page
+5. Reminders tab → see upcoming races → add reminder
+6. 🤖 AI Assistant tab → ask any F1 question → get verified answer
+7. Show error handling → enter year 1940 or 2099 → friendly message
+8. Account tab → profile, favorites, reminders management
 ```
 
 ---

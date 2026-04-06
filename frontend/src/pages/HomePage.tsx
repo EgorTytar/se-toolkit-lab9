@@ -3,14 +3,16 @@ import LatestRaceTab from '../components/tabs/LatestRaceTab';
 import BrowseSeasonsTab from '../components/tabs/BrowseSeasonsTab';
 import StandingsTab from '../components/tabs/StandingsTab';
 import RemindersTab from '../components/tabs/RemindersTab';
+import ChatTab from '../components/tabs/ChatTab';
 
-type TabKey = 'latest' | 'browse' | 'standings' | 'reminders';
+type TabKey = 'latest' | 'browse' | 'standings' | 'reminders' | 'chat';
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'latest', label: 'Latest Race' },
   { key: 'browse', label: 'Browse Seasons' },
   { key: 'standings', label: 'Standings' },
   { key: 'reminders', label: 'Reminders' },
+  { key: 'chat', label: '🤖 AI Assistant' },
 ];
 
 export default function HomePage() {
@@ -42,6 +44,7 @@ export default function HomePage() {
       {activeTab === 'browse' && <BrowseSeasonsTab />}
       {activeTab === 'standings' && <StandingsTab />}
       {activeTab === 'reminders' && <RemindersTab />}
+      {activeTab === 'chat' && <ChatTab />}
     </div>
   );
 }

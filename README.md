@@ -1,138 +1,162 @@
-# F1 Race Results Summarizer
+# F1 Race Assistant
 
-AI-powered Formula 1 race summaries using real data from the Ergast API.
+AI-powered Formula 1 dashboard with race summaries, standings, and a smart chat assistant.
 
 ## Features
 
-- Fetch and summarize the latest F1 race results
-- Query any race by season year and round number
-- AI-generated summaries with winner highlights and key insights
-- Graceful fallback when no AI API key is configured
-- RESTful API via FastAPI
-- CLI demo script for easy demonstration
-- **Web UI** — clean dark-themed dashboard at `http://localhost:8000/`
+- **Latest Race** — AI-generated summaries with real-time data, podium cards, and highlights
+- **Browse Seasons** — Explore any season's race calendar with inline AI summaries
+- **Standings** — Driver and Constructor championship tables for any year
+- **Reminders** — Set email notifications for upcoming races
+- **🤖 AI Assistant Chat** — Free-form F1 Q&A with verified data, web search fallback, and conversation history
+- **Driver Pages** — Clickable driver profiles with season results
+- **Circuit Pages** — Track info with recent race results
+- **Account** — User profiles, favorite drivers, and reminder management
 
 ## Quick Start
 
-### 1. Install dependencies
+### Option A: Docker (Recommended)
 
 ```bash
+docker compose up --build
+```
+
+Open **`http://localhost:8000`** in your browser.
+
+### Option B: Local Python
+
+```bash
+# Backend
 pip install -r requirements.txt
-```
-
-### 2. (Optional) Set your DashScope API key
-
-For full AI-generated summaries using Qwen, set your DashScope API key:
-
-```bash
-export DASHSCOPE_API_KEY="sk-..."
-```
-
-You can get a key at [DashScope Console](https://dashscope.console.aliyun.com/apiKey).
-
-Without a key the app still runs — it returns a basic fallback summary.
-
-### 3. Run the FastAPI server
-
-```bash
 uvicorn main:app --reload
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
 ```
 
-Server starts at `http://localhost:8000`.
+Open **`http://localhost:8000`** for the production build or **`http://localhost:5173`** for the dev server.
 
-### 4. Open the Web UI
+## Tech Stack
 
-Navigate to **`http://localhost:8000`** in your browser — the F1 dashboard is ready to use.
-
-The API docs are available at **`http://localhost:8000/docs`**.
+| Component | Technology |
+|-----------|-----------|
+| **Backend** | Python 3.12 + FastAPI (async) |
+| **Frontend** | React 18 + TypeScript + Vite + Tailwind CSS |
+| **Database** | PostgreSQL 18 (asyncpg + SQLAlchemy) |
+| **AI** | Qwen via OpenAI-compatible endpoint |
+| **External API** | Jolpica-F1 (Ergast mirror at api.jolpi.ca) |
+| **Containerisation** | Docker + Docker Compose |
 
 ## API Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/health` | Health check, shows if AI is available |
-| GET | `/api/races/latest` | Summarize the most recent race |
-| GET | `/api/races/{year}/{round}` | Summarize a specific race |
-
-### Query parameters
-
-Both race endpoints accept an optional `user_query` string to ask a specific question:
-
-```
-GET /api/races/latest?user_query=Who+finished+on+the+podium?
-```
-
-### Example request
-
-```bash
-curl http://localhost:8000/api/races/latest
-```
-
-### Example response
-
-```json
-{
-  "race_name": "Bahrain Grand Prix",
-  "circuit": "Bahrain International Circuit",
-  "date": "2024-03-02",
-  "season": "2024",
-  "round": 1,
-  "ai_response": {
-    "summary": "Max Verstappen delivered a dominant performance...",
-    "highlights": "Winner: Max Verstappen; Podium: Perez, Leclerc",
-    "insights": "Red Bull appears highly competitive this season.",
-    "answer": ""
-  }
-}
-```
-
-## Web UI
-
-The built-in dashboard provides:
-- **Latest Race** button — fetch and summarize with one click
-- **Year + Round** inputs — query any historical race
-- Visual podium display (🥇🥈🥉)
-- AI summary, highlights, and insights cards
-
-## CLI Demo
-
-Run the demo script to see race summaries in your terminal:
-
-```bash
-# Latest race
-python demo.py
-
-# Specific race
-python demo.py 2024 1
-
-# With a question
-python demo.py 2024 1 "Who won the race?"
-```
+| GET | `/` | React SPA |
+| GET | `/health` | Health check |
+| GET | `/api/races/latest` | AI race summary |
+| GET | `/api/races/latest/results` | Basic race results |
+| GET | `/api/races/{year}/{round}` | AI summary for specific race |
+| GET | `/api/races/{year}/{round}/results` | Basic results + circuit info |
+| GET | `/api/seasons/{year}/schedule` | Season race schedule |
+| GET | `/api/standings/drivers?year=X` | Driver standings |
+| GET | `/api/standings/constructors?year=X` | Constructor standings |
+| GET | `/api/drivers/{driver_id}` | Driver profile + results |
+| GET | `/api/circuits/{circuit_id}` | Circuit info + recent results |
+| POST | `/api/auth/register` | Register user |
+| POST | `/api/auth/login` | Login → JWT |
+| GET/PUT | `/api/users/me` | Current user profile |
+| GET/POST/DELETE | `/api/users/me/favorites` | Driver favorites |
+| GET/POST/PUT/DELETE | `/api/reminders` | Race reminders |
+| GET/POST/DELETE | `/api/chat/sessions` | Chat session management |
+| POST | `/api/chat/sessions/{id}/generate` | Generate AI chat response |
 
 ## Project Structure
 
 ```
 lab9/
 ├── config.py                  # Configuration constants
-├── main.py                    # FastAPI application
+├── main.py                    # FastAPI application (17+ endpoints)
 ├── demo.py                    # CLI demo script
 ├── requirements.txt           # Python dependencies
-├── static/
-│   └── index.html             # Web UI dashboard
+├── Dockerfile                 # Multi-stage build (Node.js + Python)
+├── docker-compose.yml         # postgres + f1-assistant
+├── frontend/                  # React TypeScript frontend
+│   ├── src/
+│   │   ├── App.tsx            # Main app with routing
+│   │   ├── types/api.ts       # TypeScript type definitions
+│   │   ├── services/api.ts    # API service layer (fetch)
+│   │   ├── contexts/AuthContext.tsx  # Auth state management
+│   │   ├── components/        # Layout, tabs
+│   │   └── pages/             # Route-level pages
+│   └── vite.config.ts
+├── db/
+│   ├── database.py            # Async engine, session, init_db
+│   └── models.py              # User, Favorite, Reminder, RaceCache, ChatSession, ChatMessage
+├── database/
+│   └── schema.sql             # Raw SQL schema
 ├── services/
-│   ├── ergast_client.py       # Ergast API client
-│   ├── data_parser.py         # Data → prompt formatter
-│   └── ai_assistant.py        # Qwen LLM summarizer
-└── models/
-    └── schemas.py             # Pydantic models
+│   ├── ergast_client.py       # 8 methods: races, standings, drivers, circuits
+│   ├── data_parser.py         # Raw data → prompt formatter
+│   ├── ai_assistant.py        # Qwen LLM summarizer
+│   ├── auth.py                # Password hashing (bcrypt), JWT
+│   └── scheduler.py           # APScheduler: reminder emails
+├── endpoints/
+│   ├── auth.py                # POST /api/auth/*
+│   ├── users.py               # GET/PUT /api/users/me
+│   ├── reminders.py           # GET/POST/PUT/DELETE /api/reminders/*
+│   ├── favorites.py           # GET/POST/DELETE /api/users/me/favorites/*
+│   └── chat.py                # Chat sessions + AI responses
+├── models/
+│   ├── schemas.py             # AI response schemas
+│   └── reminder_schemas.py    # Reminder schemas
+└── tests/
+    ├── test_api.py            # 21 unit tests
+    ├── test_e2e.py            # 28 e2e tests (58 total passing)
+    └── ...
 ```
+
+## Running Tests
+
+```bash
+# Via Docker (recommended)
+docker exec lab9-f1-assistant-1 python -m pytest tests/ -v
+
+# All 58 tests pass (30 unit + 28 e2e)
+```
+
+## Security
+
+The AI chat endpoint includes multiple security layers:
+
+- **Input sanitization** — Strips control characters, truncates to 2000 chars
+- **Rate limiting** — 10 messages per 60 seconds per user
+- **Prompt injection protection** — Blocks "ignore instructions" patterns
+- **SQL injection prevention** — SQLAlchemy parameterized queries
+- **Session ownership** — Users can only access their own chat sessions
+- **XSS prevention** — Markdown rendering with element whitelist, no script/iframe
 
 ## Data Source
 
 All race data comes from the **Jolpica-F1 API** (`api.jolpi.ca`) — a community-maintained, fully compatible mirror of the legacy Ergast F1 API. The original Ergast API was deprecated at the end of the 2024 season.
 
-## Version 1 Scope
+## Version Info
 
-This is Version 1 of the F1 Assistant. Core capability: **summarize any completed F1 race** with clear, engaging commentary.
+**Current Version:** V2 (Full F1 Assistant)
 
-Planned for Version 2: driver/constructor standings, upcoming race previews, free-form Q&A mode.
+✅ Personal accounts with JWT auth
+✅ Race reminders with email scheduler
+✅ PostgreSQL database
+✅ React frontend with dark theme
+✅ AI Assistant chat with verified data
+✅ Web search fallback for comprehensive answers
+✅ Driver head-to-head pages
+✅ Circuit pages with recent results
+✅ Favorites system (heart button on driver pages)
+✅ All 58 tests passing
+
+**Planned for future:**
+- Season Retrospective — AI summary of entire season storylines
+- Driver Head-to-Head comparison tool
+- Championship Prediction
