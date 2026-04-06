@@ -23,6 +23,7 @@ export default function ChatTab() {
     return new Set();
   });
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [deletingSession, setDeletingSession] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // Ref to track current active session (not stale in closures)
@@ -129,8 +130,19 @@ export default function ChatTab() {
     inputRef.current?.focus();
   };
 
+  const confirmDelete = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingSession(id);
+  };
+
+  const cancelDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeletingSession(null);
+  };
+
   const deleteSession = async (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
+    setDeletingSession(null);
     try {
       await chatApi.deleteSession(id);
       setSessions(prev => prev.filter(s => s.id !== id));
@@ -259,12 +271,29 @@ export default function ChatTab() {
                   {new Date(session.updated_at).toLocaleDateString()}
                 </p>
               </div>
-              <button
-                onClick={(e) => deleteSession(session.id, e)}
-                className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition text-xs px-1"
-              >
-                ✕
-              </button>
+              {deletingSession === session.id ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => deleteSession(session.id, e)}
+                    className="text-xs px-1 text-red-400 hover:text-red-300 transition font-medium"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    onClick={(e) => cancelDelete(e)}
+                    className="text-xs px-1 text-gray-400 hover:text-gray-200 transition"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={(e) => confirmDelete(session.id, e)}
+                  className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition text-xs px-1"
+                >
+                  🗑️
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -354,7 +383,7 @@ export default function ChatTab() {
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                     <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                   </div>
-                  <span className="text-xs text-gray-400">AI is thinking...</span>
+                  <span className="text-xs text-gray-400">AI is thinking... (~10–20 seconds)</span>
                 </div>
               </div>
             </div>
