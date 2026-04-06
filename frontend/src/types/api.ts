@@ -1,125 +1,109 @@
-// API Types for F1 Assistant
-
-export interface RaceResult {
-  season: string;
-  round: string;
-  raceName: string;
-  circuit: {
-    circuitId: string;
-    circuitName: string;
-    location: {
-      lat: string;
-      long: string;
-      locality: string;
-      country: string;
-    };
-  };
-  date: string;
-  time: string;
-  Results: Array<{
-    number: string;
-    position: string;
-    positionText: string;
-    points: string;
-    Driver: {
-      driverId: string;
-      code: string;
-      givenName: string;
-      familyName: string;
-      dateOfBirth: string;
-      nationality: string;
-      permanentNumber?: string;
-    };
-    Constructor: {
-      constructorId: string;
-      name: string;
-      nationality: string;
-    };
-    grid: string;
-    laps: string;
-    status: string;
-    Time?: {
-      millis: string;
-      time: string;
-    };
-    FastestLap?: {
-      rank: string;
-      lap: string;
-      Time: {
-        time: string;
-      };
-      AverageSpeed: {
-        units: string;
-        speed: string;
-      };
-    };
-  }>;
-}
-
-export interface StandingEntry {
-  position: string;
-  positionText: string;
-  points: string;
-  wins: string;
-  Driver?: {
-    driverId: string;
-    code: string;
-    givenName: string;
-    familyName: string;
-    dateOfBirth: string;
-    nationality: string;
-    permanentNumber?: string;
-  };
-  Constructor?: {
-    constructorId: string;
-    name: string;
-    nationality: string;
-  };
-}
-
-export interface RaceScheduleItem {
-  season: string;
-  round: string;
-  raceName: string;
-  circuit: {
-    circuitId: string;
-    circuitName: string;
-    location: {
-      locality: string;
-      country: string;
-    };
-  };
-  date: string;
-  time: string;
-}
-
-export interface DriverProfile {
-  driverId: string;
-  code: string;
-  givenName: string;
-  familyName: string;
-  dateOfBirth: string;
-  nationality: string;
-  permanentNumber?: string;
-  url?: string;
-}
-
-export interface CircuitInfo {
-  circuitId: string;
-  circuitName: string;
-  location: {
-    lat: string;
-    long: string;
-    locality: string;
-    country: string;
-  };
-}
+// API Types matching ACTUAL backend responses
 
 export interface AIResponse {
   summary: string;
   highlights: string;
   insights: string;
   answer?: string;
+}
+
+export interface LatestRaceResponse {
+  race_name: string;
+  circuit: string;
+  date: string;
+  season: string;
+  round: number;
+  ai_response: AIResponse;
+}
+
+export interface RaceScheduleItem {
+  round: number;
+  race_name: string;
+  circuit: string;
+  circuit_id: string;
+  date: string;
+}
+
+export interface ScheduleResponse {
+  season: number;
+  race_count: number;
+  races: RaceScheduleItem[];
+}
+
+export interface StandingEntry {
+  position: number;
+  driver_id: string;
+  driver_code: string;
+  driver_name: string;
+  nationality: string;
+  constructor: string;
+  points: number;
+  wins: number;
+}
+
+export interface StandingsResponse {
+  season: number;
+  type: string;
+  standings: StandingEntry[];
+}
+
+export interface DriverProfile {
+  driver_id: string;
+  code: string;
+  given_name: string;
+  family_name: string;
+  full_name: string;
+  date_of_birth: string;
+  nationality: string;
+  permanent_number: string;
+  url: string;
+}
+
+export interface DriverResult {
+  round: number;
+  race_name: string;
+  circuit: string;
+  circuit_id: string;
+  date: string;
+  position: string;
+  grid: number;
+  points: number;
+  status: string;
+}
+
+export interface DriverResponse {
+  driver: DriverProfile;
+  season?: number;
+  results?: DriverResult[];
+}
+
+export interface CircuitInfo {
+  circuit_id: string;
+  name: string;
+  location: string;
+  country: string;
+  latitude: string;
+  longitude: string;
+  url: string;
+}
+
+export interface CircuitResult {
+  season: string;
+  round: number;
+  race_name: string;
+  date: string;
+  position: string;
+  driver_name: string;
+  driver_id: string;
+  constructor: string;
+  grid: number;
+  points: number;
+  status: string;
+}
+
+export interface CircuitResponse {
+  circuit: CircuitInfo;
+  recent_results: CircuitResult[];
 }
 
 export interface User {
@@ -142,11 +126,9 @@ export interface Reminder {
   id: number;
   race_round: number;
   race_year: number;
-  race_name: string;
   notify_before_hours: number;
   enabled: boolean;
   method: string;
-  created_at: string;
 }
 
 export interface AuthToken {

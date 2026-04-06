@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUser = async () => {
     try {
-      const { data } = await userApi.getMe();
+      const data = await userApi.getMe();
       setUser(data);
     } catch {
       localStorage.removeItem('token');
@@ -40,14 +40,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const { data } = await authApi.login(email, password);
+    const data = await authApi.login(email, password);
     setToken(data.access_token);
     localStorage.setItem('token', data.access_token);
     await loadUser();
   };
 
   const register = async (email: string, password: string, displayName: string) => {
-    const { data } = await authApi.register(email, password, displayName);
+    const data = await authApi.register(email, password, displayName);
     setToken(data.access_token);
     localStorage.setItem('token', data.access_token);
     await loadUser();

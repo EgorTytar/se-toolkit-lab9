@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from models.schemas import AIResponse, ErrorResponse, RaceSummaryResponse
 from services.ai_assistant import AISummarizer
@@ -61,6 +62,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Cache-busting middleware for React assets
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        if "/assets/" in str(request.url) or str(request.url).endswith("/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
+app.add_middleware(NoCacheMiddleware)
+
 # Include auth and user profile routers
 app.include_router(auth_router)
 app.include_router(users_router)
@@ -75,9 +88,17 @@ ai_summarizer = AISummarizer()
 
 
 @app.get("/")
-async def root() -> FileResponse:
-    """Serve the React frontend UI."""
-    return FileResponse("static/dist/index.html")
+async def root() -> HTMLResponse:
+    """Serve the React frontend UI with no-cache headers."""
+    return HTMLResponse(
+        content=open("static/dist/index.html").read(),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
 
 
 @app.get("/health")

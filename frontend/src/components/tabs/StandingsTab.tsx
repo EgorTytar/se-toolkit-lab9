@@ -16,10 +16,9 @@ export default function StandingsTab() {
     setLoading(true);
     setError(null);
     try {
-      const api = standingType === 'drivers' 
-        ? standingsApi.getDriverStandings(year)
-        : standingsApi.getConstructorStandings(year);
-      const { data } = await api;
+      const data = standingType === 'drivers'
+        ? await standingsApi.getDriverStandings(year)
+        : await standingsApi.getConstructorStandings(year);
       setStandings(data.standings);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load standings');
@@ -35,7 +34,7 @@ export default function StandingsTab() {
           type="number"
           value={year}
           onChange={(e) => setYear(parseInt(e.target.value))}
-          className="px-4 py-2 border border-gray-300 rounded-md w-32"
+          className="px-4 py-2 border border-gray-600 rounded-md w-32 bg-gray-800 text-gray-100"
           placeholder="Year"
           min={1950}
           max={new Date().getFullYear() + 1}
@@ -47,7 +46,7 @@ export default function StandingsTab() {
             className={`px-4 py-2 rounded-md transition ${
               standingType === 'drivers'
                 ? 'bg-red-600 text-white'
-                : 'bg-gray-200 hover:bg-gray-300'
+                : 'bg-gray-700 hover:bg-gray-600'
             }`}
           >
             Drivers
@@ -57,7 +56,7 @@ export default function StandingsTab() {
             className={`px-4 py-2 rounded-md transition ${
               standingType === 'constructors'
                 ? 'bg-red-600 text-white'
-                : 'bg-gray-200 hover:bg-gray-300'
+                : 'bg-gray-700 hover:bg-gray-600'
             }`}
           >
             Constructors
@@ -74,64 +73,54 @@ export default function StandingsTab() {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">{error}</p>
+        <div className="bg-red-900/30 border border-red-700 rounded-lg p-4">
+          <p className="text-red-400">{error}</p>
         </div>
       )}
 
       {standings.length > 0 && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+        <div className="bg-gray-800 rounded-lg shadow overflow-hidden">
+          <table className="min-w-full divide-y divide-gray-700">
+            <thead className="bg-gray-700">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Pos
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   {standingType === 'drivers' ? 'Driver' : 'Team'}
                 </th>
-                {standingType === 'drivers' && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Nationality
-                  </th>
-                )}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  Nationality
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Points
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Wins
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-gray-800 divide-y divide-gray-700">
               {standings.map((entry, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <tr key={idx} className="hover:bg-gray-700">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
                     {entry.position}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {standingType === 'drivers' && entry.Driver ? (
-                      <Link
-                        to={`/driver/${entry.Driver.driverId}`}
-                        className="text-red-600 hover:underline"
-                      >
-                        {entry.Driver.givenName} {entry.Driver.familyName}
-                      </Link>
-                    ) : entry.Constructor ? (
-                      entry.Constructor.name
-                    ) : (
-                      'Unknown'
-                    )}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
+                    <Link
+                      to={`/driver/${entry.driver_id}`}
+                      className="text-red-400 hover:underline"
+                    >
+                      {entry.driver_name} ({entry.driver_code})
+                    </Link>
                   </td>
-                  {standingType === 'drivers' && entry.Driver && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {entry.Driver.nationality}
-                    </td>
-                  )}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-semibold">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                    {entry.nationality}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100 font-semibold">
                     {entry.points}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                     {entry.wins}
                   </td>
                 </tr>

@@ -36,8 +36,8 @@ export default function AccountPage() {
         favoritesApi.getFavorites(),
         remindersApi.getReminders(),
       ]);
-      setFavorites(favsRes.data);
-      setReminders(remsRes.data);
+      setFavorites(favsRes);
+      setReminders(remsRes);
     } catch {
       // Non-critical
     } finally {
@@ -96,7 +96,7 @@ export default function AccountPage() {
       <h1 className="text-3xl font-bold">Account</h1>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-700">
         <nav className="-mb-px flex space-x-8">
           {(['profile', 'favorites', 'reminders'] as AccountTab[]).map((tab) => (
             <button
@@ -104,8 +104,8 @@ export default function AccountPage() {
               onClick={() => setActiveTab(tab)}
               className={`py-4 px-1 border-b-2 font-medium text-sm transition ${
                 activeTab === tab
-                  ? 'border-red-500 text-red-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-red-500 text-red-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-500'
               }`}
             >
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -115,49 +115,49 @@ export default function AccountPage() {
       </div>
 
       {message && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-700">{message}</p>
+        <div className="bg-green-900/30 border border-green-700 rounded-lg p-4">
+          <p className="text-green-400">{message}</p>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">{error}</p>
+        <div className="bg-red-900/30 border border-red-700 rounded-lg p-4">
+          <p className="text-red-400">{error}</p>
         </div>
       )}
 
       {/* Profile Tab */}
       {activeTab === 'profile' && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-gray-800 rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-4">Profile</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Email
               </label>
               <input
                 type="email"
                 value={user.email}
                 disabled
-                className="w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-50"
+                className="w-full px-4 py-2 border border-gray-600 rounded-md bg-gray-700 text-gray-300"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Display Name
               </label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md"
+                className="w-full px-4 py-2 border border-gray-600 rounded-md bg-gray-700"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
                 Member Since
               </label>
-              <p className="text-gray-700">
+              <p className="text-gray-300">
                 {new Date(user.created_at).toLocaleDateString()}
               </p>
             </div>
@@ -174,16 +174,16 @@ export default function AccountPage() {
 
       {/* Favorites Tab */}
       {activeTab === 'favorites' && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-gray-800 rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-4">Favorite Drivers</h2>
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
             </div>
           ) : favorites.length === 0 ? (
-            <p className="text-gray-500">
+            <p className="text-gray-400">
               No favorites yet. Visit a{' '}
-              <Link to="/" className="text-red-600 hover:underline">
+              <Link to="/" className="text-red-400 hover:underline">
                 driver page
               </Link>{' '}
               and click the heart icon!
@@ -193,11 +193,11 @@ export default function AccountPage() {
               {favorites.map((fav) => (
                 <div
                   key={fav.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
                 >
                   <Link
                     to={`/driver/${fav.driver_id}`}
-                    className="text-red-600 hover:underline font-medium"
+                    className="text-red-400 hover:underline font-medium"
                   >
                     {fav.driver_name} ({fav.driver_code})
                   </Link>
@@ -216,32 +216,29 @@ export default function AccountPage() {
 
       {/* Reminders Tab */}
       {activeTab === 'reminders' && (
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-gray-800 rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-4">Your Reminders</h2>
           {loading ? (
             <div className="flex justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
             </div>
           ) : reminders.length === 0 ? (
-            <p className="text-gray-500">
-              No reminders set. Go to the{' '}
-              <Link to="/" className="text-red-600 hover:underline">
-                Reminders tab
-              </Link>{' '}
-              on the dashboard to add one!
+            <p className="text-gray-400">
+              No reminders set. Go to the Reminders tab on the dashboard to add one!
             </p>
           ) : (
             <div className="space-y-3">
               {reminders.map((reminder) => (
                 <div
                   key={reminder.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
                 >
                   <div>
-                    <p className="font-medium">{reminder.race_name}</p>
-                    <p className="text-sm text-gray-500">
-                      Round {reminder.race_round} • {reminder.race_year} •{' '}
-                      {reminder.notify_before_hours}h before
+                    <p className="font-medium">
+                      Round {reminder.race_round} • {reminder.race_year}
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      {reminder.notify_before_hours}h before • {reminder.method}
                     </p>
                   </div>
                   <button

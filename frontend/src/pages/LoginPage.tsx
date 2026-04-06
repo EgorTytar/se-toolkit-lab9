@@ -27,18 +27,18 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="bg-white rounded-lg shadow p-8">
+      <div className="bg-gray-800 rounded-lg shadow p-8">
         <h2 className="text-2xl font-bold mb-6 text-center">Login</h2>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-            <p className="text-red-700 text-sm">{error}</p>
+          <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 mb-4">
+            <p className="text-red-400 text-sm">{error}</p>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Email
             </label>
             <input
@@ -46,12 +46,12 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+              className="w-full px-4 py-2 border border-gray-600 rounded-md bg-gray-700 focus:ring-red-500 focus:border-red-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-300 mb-1">
               Password
             </label>
             <input
@@ -59,7 +59,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-red-500 focus:border-red-500"
+              className="w-full px-4 py-2 border border-gray-600 rounded-md bg-gray-700 focus:ring-red-500 focus:border-red-500"
             />
           </div>
 
@@ -72,9 +72,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
+        <p className="mt-4 text-center text-sm text-gray-400">
           Don't have an account?{' '}
-          <Link to="/register" className="text-red-600 hover:underline">
+          <Link to="/register" className="text-red-400 hover:underline">
             Register
           </Link>
         </p>
