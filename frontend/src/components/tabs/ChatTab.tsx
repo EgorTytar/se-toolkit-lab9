@@ -12,10 +12,23 @@ export default function ChatTab() {
   const [activeSession, setActiveSession] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [pendingSessions, setPendingSessions] = useState<Set<number>>(new Set());
+  // Persist pending sessions to localStorage so they survive page reloads
+  const [pendingSessions, setPendingSessions] = useState<Set<number>>(() => {
+    try {
+      const stored = localStorage.getItem('f1_pending_sessions');
+      if (stored) {
+        return new Set(JSON.parse(stored));
+      }
+    } catch {}
+    return new Set();
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // Ref to track current active session (not stale in closures)
+  const activeSessionRef = useRef<number | null>(null);
+  // Ref for polling to avoid re-render loops
+  const pendingRef = useRef<Set<number>>(new Set());
 
   const isSessionTyping = activeSession !== null && pendingSessions.has(activeSession);
 
@@ -25,6 +38,56 @@ export default function ChatTab() {
     }
   }, [isAuthenticated]);
 
+  // Keep refs in sync with state
+  useEffect(() => {
+    activeSessionRef.current = activeSession;
+  }, [activeSession]);
+
+  useEffect(() => {
+    pendingRef.current = pendingSessions;
+    // Persist to localStorage so they survive page reloads
+    try {
+      localStorage.setItem('f1_pending_sessions', JSON.stringify([...pendingSessions]));
+    } catch {}
+  }, [pendingSessions]);
+
+  // Poll pending sessions every 1 second to check if AI has responded
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const poll = async () => {
+      const pending = pendingRef.current;
+      if (pending.size === 0) return;
+
+      for (const sessionId of [...pending]) {
+        try {
+          const session = await chatApi.getSession(sessionId);
+          const lastMsg = session.messages?.[session.messages.length - 1];
+          if (lastMsg && lastMsg.role === 'assistant') {
+            console.log(`[poll] AI responded for session ${sessionId}, updating UI`);
+            if (activeSessionRef.current === sessionId) {
+              setMessages(session.messages || []);
+            }
+            setPendingSessions(prev => {
+              const next = new Set(prev);
+              next.delete(sessionId);
+              return next;
+            });
+            // Reload sessions list
+            const sessionsData = await chatApi.listSessions();
+            setSessions(sessionsData);
+          }
+        } catch (e) {
+          console.log(`[poll] error for session ${sessionId}:`, e);
+        }
+      }
+    };
+
+    const interval = setInterval(poll, 1000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
+
+  // Auto-scroll when messages or typing state changes
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isSessionTyping]);
@@ -43,6 +106,17 @@ export default function ChatTab() {
     try {
       const session = await chatApi.getSession(id);
       setMessages(session.messages || []);
+      // If this session was pending, check if AI has responded now
+      if (pendingSessions.has(id)) {
+        const lastMsg = session.messages?.[session.messages.length - 1];
+        if (lastMsg && lastMsg.role === 'assistant') {
+          setPendingSessions(prev => {
+            const next = new Set(prev);
+            next.delete(id);
+            return next;
+          });
+        }
+      }
     } catch {
       setMessages([]);
     }
@@ -118,28 +192,17 @@ export default function ChatTab() {
     });
 
     // Step 2: Generate AI response (this takes time but message is already saved)
+    // Polling will detect when AI responds and update messages automatically
     try {
       await chatApi.generateResponse(sessionId);
+      console.log(`[send] generateResponse succeeded for session ${sessionId}`);
       await loadSessions();
-    } catch {
-      // Silent fail - message is in DB
+    } catch (err: any) {
+      console.error(`[send] generateResponse FAILED for session ${sessionId}:`, err);
+      // DON'T remove from pending - polling will still check
+      // The AI might have failed but the polling will eventually give up or find the response
     }
-
-    // Reload session from DB and remove from pending
-    try {
-      const session = await chatApi.getSession(sessionId);
-      if (activeSession === sessionId) {
-        setMessages(session.messages || []);
-      }
-    } catch {
-      // Keep what we have
-    } finally {
-      setPendingSessions(prev => {
-        const next = new Set(prev);
-        next.delete(sessionId);
-        return next;
-      });
-    }
+    // Don't remove from pending here - polling will remove it when AI responds
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
