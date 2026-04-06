@@ -45,10 +45,10 @@ The user provides a race name (or latest race), and the application fetches real
 | Component | Technology | Reason |
 |-----------|------------|--------|
 | Backend | Python + FastAPI | Lightweight, async-friendly, easy to set up |
+| Frontend | React 18 + TypeScript + Vite + Tailwind CSS | Type-safe, component-based UI, fast builds |
 | External API | Jolpica-F1 (Ergast-compatible) | Free, no auth required, official Ergast replacement |
 | AI Layer | Qwen (via OpenAI-compatible endpoint) | Structured JSON output, cost-effective |
 | CLI / Demo | Simple Python script or curl | Easy to demonstrate |
-| Web UI | Single-page HTML dashboard | No build needed, works instantly |
 | Package management | pip + requirements.txt | Standard Python ecosystem |
 | Containerisation | Docker + Docker Compose | Reproducible, one-command deployment |
 
@@ -220,7 +220,36 @@ lab9/
 ├── .dockerignore              # Build context exclusions
 ├── .env.example               # Template for environment variables
 ├── static/
-│   └── index.html             # Web UI dashboard (970+ lines)
+│   ├── index.html             # Legacy Web UI (replaced by React)
+│   └── dist/                  # React build output (served in production)
+├── frontend/                  # React frontend (Vite + TypeScript)
+│   ├── package.json           # Node.js dependencies
+│   ├── vite.config.ts         # Vite build configuration
+│   ├── index.html             # React entry point
+│   └── src/
+│       ├── App.tsx            # Main app component with routing
+│       ├── main.tsx           # React entry point
+│       ├── index.css          # Tailwind CSS styles
+│       ├── types/
+│       │   └── api.ts         # TypeScript type definitions
+│       ├── services/
+│       │   └── api.ts         # API service layer (axios wrappers)
+│       ├── contexts/
+│       │   └── AuthContext.tsx # Authentication context
+│       ├── components/
+│       │   ├── Layout.tsx     # Header, footer, navigation
+│       │   └── tabs/          # Dashboard tab components
+│       │       ├── LatestRaceTab.tsx
+│       │       ├── BrowseSeasonsTab.tsx
+│       │       ├── StandingsTab.tsx
+│       │       └── RemindersTab.tsx
+│       └── pages/             # Route page components
+│           ├── HomePage.tsx
+│           ├── AccountPage.tsx
+│           ├── DriverPage.tsx
+│           ├── CircuitPage.tsx
+│           ├── LoginPage.tsx
+│           └── RegisterPage.tsx
 ├── services/
 │   ├── __init__.py
 │   ├── ergast_client.py       # Ergast API client (6 methods)
@@ -237,6 +266,62 @@ lab9/
     ├── test_api.py            # API endpoint tests (21 tests)
     └── test_e2e.py            # E2E tests against running server (28 tests)
 ```
+
+---
+
+## Frontend Migration: React + TypeScript
+
+The frontend has been migrated from a single static HTML file (1,700+ lines) to a modern React + TypeScript application with the following improvements:
+
+### What Changed
+
+| Before (Vanilla HTML/JS) | After (React + TypeScript) |
+|--------------------------|----------------------------|
+| Single 1,700+ line `static/index.html` | Component-based architecture (20+ files) |
+| Manual DOM manipulation | Declarative React components |
+| No type safety | Full TypeScript support |
+| Browser caching issues | Build-time cache busting with hashed assets |
+| Round 3 detail bug (JS scope issue) | Fixed with proper React state management |
+| Inline CSS | Tailwind CSS utility classes |
+| No routing | React Router with proper URL paths |
+| Hard to test | Component-level testing possible |
+
+### React Project Structure
+
+```
+frontend/
+├── src/
+│   ├── App.tsx              # Main app with routing
+│   ├── main.tsx             # Entry point
+│   ├── index.css            # Tailwind imports
+│   ├── types/api.ts         # 20+ TypeScript interfaces
+│   ├── services/api.ts      # Axios-based API wrappers
+│   ├── contexts/AuthContext.tsx  # Auth state management
+│   ├── components/          # Reusable UI components
+│   │   ├── Layout.tsx       # Header, nav, footer
+│   │   └── tabs/            # Dashboard tabs
+│   └── pages/               # Route-level pages
+│       ├── HomePage.tsx     # Main dashboard
+│       ├── AccountPage.tsx  # User profile + favorites + reminders
+│       ├── DriverPage.tsx   # Driver detail with favorites
+│       ├── CircuitPage.tsx  # Circuit info + recent results
+│       ├── LoginPage.tsx
+│       └── RegisterPage.tsx
+```
+
+### Docker Build Process
+
+The Dockerfile now uses a **multi-stage build**:
+1. **Stage 1**: Node.js 20 Alpine builds the React app (`npm run build`)
+2. **Stage 2**: Python 3.12 slim copies the build output and serves it via FastAPI
+
+### Features Preserved
+
+✅ All V1 features (race summaries, standings, driver/circuit pages)  
+✅ All V2 features (auth, favorites, reminders, account management)  
+✅ All 58 tests pass (30 unit + 28 e2e)  
+✅ SPA routing with proper 404 for unknown API routes  
+✅ Hash-based URLs replaced with proper routes (`/driver/{id}`, `/circuit/{id}`, `/account`)
 
 ---
 

@@ -20,7 +20,8 @@
       "Bash(pkill *)",
       "Bash(docker cp *)",
       "Bash(docker exec *)",
-      "Bash(docker images)"
+      "Bash(docker images)",
+      "Bash(npm install *)"
     ]
   },
   "$version": 3

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>F1 Race Assistant</title>
+  <title>F1 Race Assistant v2.1</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏎️</text></svg>">
   <style>
     :root {
@@ -158,6 +158,11 @@
     .year-select input:focus { border-color: var(--red); }
 
     /* Standings tables */
+    /* Season header and race list visibility */
+    .season-header { display: none; }
+    .season-header.visible { display: block; }
+    .race-list { display: none; }
+    .race-list.visible { display: block; }
     .standings-section { display: none; }
     .standings-section.visible { display: block; }
     .standings-controls {
@@ -256,18 +261,20 @@
     .race-item .arrow { color: var(--text-muted); font-size: 0.8rem; transition: transform 0.25s; }
     .race-item.expanded .arrow { transform: rotate(90deg); }
 
-    /* Inline race detail — slides right under the race item */
+    /* Inline race detail — appears directly under the race item */
     .race-detail {
-      max-height: 0; overflow: hidden; opacity: 0;
-      padding: 0 1rem; margin: 0 0 0 0.5rem;
+      display: none;
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.75rem 1rem;
+      margin-top: 0.25rem;
       border-left: 2px solid var(--blue);
       background: var(--surface);
-      transition: max-height 0.35s ease, opacity 0.25s ease, padding 0.3s ease;
     }
-    .race-detail.open {
-      max-height: 2000px; opacity: 1;
-      padding: 1rem;
+    .race-detail.show {
+      display: block !important;
     }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     .race-detail h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.4rem; }
     .race-detail .meta { display: flex; gap: 1rem; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; flex-wrap: wrap; }
@@ -700,57 +707,72 @@
     function toggleDetail(year, round, el) {
       const detail = document.getElementById(`detail-${year}-${round}`);
       const item = document.getElementById(`race-item-${year}-${round}`);
-      const wasOpen = detail && detail.classList.contains('open');
+      const isVisible = detail && detail.classList.contains('show');
+
+      console.log(`toggleDetail(${year}, ${round})`, { detail, item, isVisible });
 
       // Close all open details
-      document.querySelectorAll('.race-detail.open').forEach(d => d.classList.remove('open'));
+      document.querySelectorAll('.race-detail.show').forEach(d => d.classList.remove('show'));
       document.querySelectorAll('.race-item.expanded').forEach(i => {
         i.classList.remove('expanded', 'selected');
       });
 
-      if (!wasOpen) {
-        // Create detail if it doesn't exist
-        if (!detail) {
-          selectRace(year, round, el);
-        } else {
-          detail.classList.add('open');
-          item.classList.add('expanded', 'selected');
+      if (!isVisible && detail && item) {
+        detail.classList.add('show');
+        item.classList.add('expanded', 'selected');
+        try {
+          loadRaceDetail(year, round, detail);
+        } catch(e) {
+          console.error('loadRaceDetail error:', e);
         }
       }
     }
 
-    // ── Select race → load basic info ──
-    async function selectRace(year, round, el) {
-      const item = document.getElementById(`race-item-${year}-${round}`);
-      if (!item) return;
-
-      item.classList.add('expanded', 'selected');
-
-      // Insert detail element right after the race item
-      const detail = buildRaceDetail(year, round, {
-        race_name: 'Loading...', circuit: '', date: '',
-        total_drivers: 0, podium: [], winner: null,
-      });
-      item.after(detail);
-
-      // Trigger animation next frame
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          detail.classList.add('open');
-        });
-      });
-
+    async function loadRaceDetail(year, round, detail) {
+      console.log('loadRaceDetail called:', year, round, detail);
+      if (detail.dataset.loaded === 'true') return;
+      detail.innerHTML = `<div style="text-align:center;padding:1rem;"><span class="spinner"></span> Loading race data…</div>`;
       try {
         const res = await fetch(`/api/races/${year}/${round}/results`);
+        console.log('API response:', res.status);
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
         const data = await res.json();
-        const newDetail = buildRaceDetail(year, round, data);
-        detail.replaceWith(newDetail);
-        requestAnimationFrame(() => newDetail.classList.add('open'));
+        console.log('API data:', data);
+        const cId = data.circuit_id || '';
+        const circuitHtml = cId
+          ? `<span class="driver-link" onclick="goToCircuit('${cId}')">${data.circuit}</span>`
+          : data.circuit;
+        const podium = data.podium || [];
+        const podiumHtml = podium.length > 0 ? renderPodium(podium) : '';
+        detail.innerHTML = `
+          <h3><span class="driver-link" onclick="goToRace(${year}, ${round})">${data.race_name}</span></h3>
+          <div class="meta">
+            <span>📍 ${circuitHtml}</span>
+            <span>📅 ${data.date}</span>
+            <span>🏁 Round ${round}</span>
+            ${data.total_drivers ? `<span>👥 ${data.total_drivers} drivers</span>` : ''}
+          </div>
+          ${podiumHtml}
+          <div class="action-bar">
+            <button class="btn-ai" id="btn-ai-${year}-${round}" onclick="askAI(${year}, ${round})">🤖 Ask AI</button>
+            <span style="font-size:0.72rem;color:var(--text-muted)">Get a detailed AI summary</span>
+          </div>
+          <div class="ai-response" id="ai-${year}-${round}"></div>
+        `;
+        detail.dataset.loaded = 'true';
       } catch (e) {
+        console.error('loadRaceDetail error:', e);
         detail.innerHTML = `<p style="padding:0.5rem 0;color:#de7b7b">Error: ${e.message}</p>`;
-        detail.classList.add('open');
       }
+    }
+
+    async function selectRace(year, round, el) {
+      const item = document.getElementById(`race-item-${year}-${round}`);
+      const detail = document.getElementById(`detail-${year}-${round}`);
+      if (!item || !detail) return;
+      item.classList.add('expanded', 'selected');
+      detail.classList.add('show');
+      await loadRaceDetail(year, round, detail);
     }
 
     // ── Ask AI ──
@@ -793,8 +815,8 @@
         const round = data.round;
 
         const detail = buildRaceDetail(season, round, data);
+        detail.classList.add('show');
         container.appendChild(detail);
-        requestAnimationFrame(() => detail.classList.add('open'));
 
         hideStatus('latest-status');
       } catch (e) {
@@ -845,25 +867,39 @@
     }
 
     function renderSchedule(data) {
-      document.getElementById('season-title').textContent = data.season + ' Season';
+      const season = parseInt(data.season);
+      document.getElementById('season-title').textContent = season + ' Season';
       document.getElementById('season-count').textContent = data.race_count + ' races';
       document.getElementById('season-header').classList.add('visible');
 
       const list = document.getElementById('race-list');
-      list.innerHTML = data.races.map(r => {
+      list.innerHTML = '';
+      data.races.forEach(r => {
         const cId = r.circuit_id || '';
         const circuitHtml = cId
           ? `<span class="driver-link" onclick="event.stopPropagation(); goToCircuit('${cId}');">${r.circuit}</span>`
           : r.circuit;
-        return `<div class="race-item" onclick="toggleDetail(${data.season}, ${r.round}, this)" id="race-item-${data.season}-${r.round}">
+        // Race item
+        const div = document.createElement('div');
+        div.className = 'race-item';
+        div.id = `race-item-${season}-${r.round}`;
+        div.setAttribute('onclick', `toggleDetail(${season}, ${r.round}, this)`);
+        div.innerHTML = `
           <div class="round">${r.round}</div>
           <div class="info">
             <div class="name">${r.race_name}</div>
             <div class="meta">${circuitHtml} · ${r.date}</div>
           </div>
           <div class="arrow">▶</div>
-        </div>`;
-      }).join('');
+        `;
+        list.appendChild(div);
+        // Detail element (sibling, not child)
+        const detail = document.createElement('div');
+        detail.className = 'race-detail';
+        detail.id = `detail-${season}-${r.round}`;
+        detail.innerHTML = `<div style="text-align:center;padding:1rem;"><span class="spinner"></span> Loading…</div>`;
+        list.appendChild(detail);
+      });
       list.classList.add('visible');
     }
 
@@ -1456,18 +1492,38 @@
         tab: document.querySelector('.tab.active')?.id?.replace('tab-', '') || 'latest',
         standingsYear: currentStandingsYear,
       };
-      switchTab('season');
+      // Hide other sections first
+      document.getElementById('section-latest').classList.remove('visible');
+      document.getElementById('section-driver').classList.remove('visible');
+      document.getElementById('section-circuit').classList.remove('visible');
+      document.getElementById('section-standings').classList.remove('visible');
+      document.getElementById('section-reminders').classList.remove('visible');
+      document.getElementById('section-auth').classList.remove('visible');
+      // Show season section
+      document.getElementById('section-season').classList.add('visible');
+      // Clear previous season content
+      document.getElementById('season-header').classList.remove('visible');
+      document.getElementById('race-list').classList.remove('visible');
+      document.getElementById('race-list').innerHTML = '';
       document.getElementById('input-year').value = year;
-      // Fetch season if not loaded
+      // Deactivate all tabs then activate season
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-season').classList.add('active');
+
+      // Fetch season
       try {
         const res = await fetch(`/api/seasons/${year}/schedule`);
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'API error'); }
         const data = await res.json();
         renderSchedule(data);
-        // Open the specific race
-        setTimeout(() => {
-          toggleDetail(year, round, document.getElementById(`race-item-${year}-${round}`));
-        }, 100);
+
+        // Highlight and scroll to target race without auto-expanding
+        await new Promise(r => setTimeout(r, 50));
+        const raceItem = document.getElementById(`race-item-${year}-${round}`);
+        if (raceItem) {
+          raceItem.classList.add('selected');
+          raceItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       } catch (e) {
         showStatus('season-status', 'Error: ' + e.message, 'error');
       }

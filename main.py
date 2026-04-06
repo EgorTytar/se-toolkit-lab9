@@ -4,7 +4,7 @@ import logging
 import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -67,8 +67,8 @@ app.include_router(users_router)
 app.include_router(reminders_router)
 app.include_router(favorites_router)
 
-# Serve static files (frontend UI)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Serve static files (React frontend build output)
+app.mount("/assets", StaticFiles(directory="static/dist/assets"), name="assets")
 
 ergast_client = ErgastClient()
 ai_summarizer = AISummarizer()
@@ -76,8 +76,8 @@ ai_summarizer = AISummarizer()
 
 @app.get("/")
 async def root() -> FileResponse:
-    """Serve the frontend UI."""
-    return FileResponse("static/index.html")
+    """Serve the React frontend UI."""
+    return FileResponse("static/dist/index.html")
 
 
 @app.get("/health")
@@ -491,3 +491,12 @@ def _build_basic_results(race_data: dict) -> dict:
             for p in top3
         ],
     }
+
+
+# Catch-all route for SPA routing (must be last, excludes /api routes)
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str) -> FileResponse:
+    """Serve React app for any non-API route."""
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse("static/dist/index.html")
