@@ -9,6 +9,9 @@ import type {
   FavoriteDriver,
   Reminder,
   AuthToken,
+  ChatSession,
+  ChatSessionWithMessages,
+  ChatMessage,
 } from '../types/api';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -144,4 +147,25 @@ export const remindersApi = {
 // Health check
 export const healthApi = {
   check: () => apiFetch<{ status: string; db_healthy: boolean; ai_available: boolean }>(`${BASE}/health`),
+};
+
+// Chat endpoints
+export const chatApi = {
+  listSessions: () => apiFetch<ChatSession[]>(`${BASE}/api/chat/sessions`),
+  createSession: (title?: string) =>
+    apiFetch<ChatSession>(`${BASE}/api/chat/sessions`, {
+      method: 'POST',
+      body: JSON.stringify(title ? { title } : {}),
+    }),
+  getSession: (id: number) =>
+    apiFetch<ChatSessionWithMessages>(`${BASE}/api/chat/sessions/${id}`),
+  deleteSession: (id: number) =>
+    apiFetch(`${BASE}/api/chat/sessions/${id}`, {
+      method: 'DELETE',
+    }),
+  sendMessage: (sessionId: number, content: string) =>
+    apiFetch<{ message: ChatMessage }>(`${BASE}/api/chat/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
 };
