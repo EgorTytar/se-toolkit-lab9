@@ -12,11 +12,12 @@ export default function ChatTab() {
   const [activeSession, setActiveSession] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
-  const [aiTyping, setAiTyping] = useState(false);
-  const [typingSession, setTypingSession] = useState<number | null>(null);
+  const [pendingSessions, setPendingSessions] = useState<Set<number>>(new Set());
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const isSessionTyping = activeSession !== null && pendingSessions.has(activeSession);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -26,7 +27,7 @@ export default function ChatTab() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, aiTyping]);
+  }, [messages, isSessionTyping]);
 
   const loadSessions = async () => {
     try {
@@ -42,15 +43,8 @@ export default function ChatTab() {
     try {
       const session = await chatApi.getSession(id);
       setMessages(session.messages || []);
-      // If this session is currently waiting for AI response, keep typing indicator
-      if (typingSession === id) {
-        setAiTyping(true);
-      } else {
-        setAiTyping(false);
-      }
     } catch {
       setMessages([]);
-      setAiTyping(false);
     }
   };
 
@@ -77,7 +71,7 @@ export default function ChatTab() {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || aiTyping) return;
+    if (!text || isSessionTyping) return;
 
     setInput('');
 
@@ -91,22 +85,22 @@ export default function ChatTab() {
         setActiveSession(sessionId);
         await loadSessions();
       } catch {
-        setAiTyping(false);
-        setTypingSession(null);
         return;
       }
     }
 
-    // Track which session is typing
-    setTypingSession(sessionId);
-    setAiTyping(true);
+    // Mark this session as pending
+    setPendingSessions(prev => new Set(prev).add(sessionId));
 
     // Step 1: Save user message to DB immediately (fast, returns instantly)
     try {
       await chatApi.saveMessage(sessionId, text);
     } catch {
-      setAiTyping(false);
-      setTypingSession(null);
+      setPendingSessions(prev => {
+        const next = new Set(prev);
+        next.delete(sessionId);
+        return next;
+      });
       return;
     }
 
@@ -118,7 +112,6 @@ export default function ChatTab() {
       created_at: new Date().toISOString(),
     };
 
-    // Always add to local state immediately
     setMessages(prev => {
       if (prev.some(m => m.id === userMsg.id)) return prev;
       return [...prev, userMsg];
@@ -127,37 +120,27 @@ export default function ChatTab() {
     // Step 2: Generate AI response (this takes time but message is already saved)
     try {
       await chatApi.generateResponse(sessionId);
-      // Refresh session list to update title/timestamp
       await loadSessions();
+    } catch {
+      // Silent fail - message is in DB
+    }
 
-      // Reload this session from DB to ensure consistency
+    // Reload session from DB and remove from pending
+    try {
+      const session = await chatApi.getSession(sessionId);
       if (activeSession === sessionId) {
-        const session = await chatApi.getSession(sessionId);
         setMessages(session.messages || []);
       }
     } catch {
-      // Reload from DB to show the saved user message + any AI response
-      try {
-        if (activeSession === sessionId) {
-          const session = await chatApi.getSession(sessionId);
-          setMessages(session.messages || []);
-        }
-      } catch {
-        // Last resort: keep what we have
-      }
+      // Keep what we have
     } finally {
-      // Only clear typing state if still typing for this session
-      setTypingSession(prev => {
-        if (prev === sessionId) {
-          setAiTyping(false);
-          return null;
-        }
-        return prev;
+      setPendingSessions(prev => {
+        const next = new Set(prev);
+        next.delete(sessionId);
+        return next;
       });
     }
   };
-
-  const isSessionTyping = typingSession === activeSession;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
