@@ -107,3 +107,17 @@ class ChatMessage(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     session = relationship("ChatSession", back_populates="messages")
+
+
+class PushSubscription(Base):
+    """Stores browser push notification subscriptions for users."""
+    __tablename__ = "push_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    endpoint = Column(String(1000), nullable=False, index=True)  # Push service URL
+    p256dh = Column(String(500), nullable=False)  # Public key
+    auth = Column(String(500), nullable=False)  # Auth secret
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    user = relationship("User", backref="push_subscriptions")
