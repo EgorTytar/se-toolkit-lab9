@@ -13,6 +13,7 @@ import type {
   ChatSessionWithMessages,
   ChatMessage,
   DriverComparisonResponse,
+  TeammateInfo,
 } from '../types/api';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -191,4 +192,6 @@ export const compareApi = {
     apiFetch<DriverComparisonResponse>(
       `${BASE}/api/compare/drivers?a=${encodeURIComponent(driverA)}&b=${encodeURIComponent(driverB)}`,
     ),
+  getDriverTeammates: (driverId: string) =>
+    apiFetch<TeammateInfo[]>(`${BASE}/api/compare/drivers/${encodeURIComponent(driverId)}/teammates`),
 };

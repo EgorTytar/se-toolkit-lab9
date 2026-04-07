@@ -224,3 +224,13 @@ export interface DriverComparisonResponse {
   };
   head_to_head: HeadToHead;
 }
+
+export interface TeammateInfo {
+  driver_id: string;
+  seasons: number[];
+  constructors: {
+    constructor_id: string;
+    constructor_name: string;
+  }[];
+  total_races: number;
+}

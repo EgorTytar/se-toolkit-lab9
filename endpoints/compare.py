@@ -53,7 +53,10 @@ async def search_drivers(q: str = Query(..., min_length=1, max_length=100)) -> l
 
 
 @router.get("/drivers")
-async def compare_drivers(a: str, b: str) -> dict:
+async def compare_drivers(
+    a: str,
+    b: str,
+) -> dict:
     """Compare two drivers side-by-side.
 
     Query params:
@@ -337,7 +340,7 @@ def _compute_head_to_head(
 
     return {
         "shared_seasons": shared_seasons,
-        "shared_races": len(shared_race_keys),
+        "shared_races": len(race_details),
         "driver_a_wins": a_wins,
         "driver_b_wins": b_wins,
         "draws": draws,
@@ -368,3 +371,107 @@ def _determine_race_winner(a_pos: str, b_pos: str, a_status: str, b_status: str)
         return "b"
     else:
         return "draw"
+
+
+# ── Teammates ──
+
+@router.get("/drivers/{driver_id}/teammates")
+async def get_driver_teammates(driver_id: str) -> list[dict]:
+    """Get all teammates for a driver across their career.
+
+    Returns a list of drivers who shared a constructor with the given driver,
+    including: driver info, shared seasons, shared constructor, and combined races.
+    """
+    # Get driver info
+    try:
+        driver_info = await ergast_client.get_driver_info(driver_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=f"Driver '{driver_id}' not found: {e}") from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    # Get career results to find constructors and seasons
+    try:
+        career = await ergast_client.get_driver_all_results(driver_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch career results: {e}") from e
+
+    if not career:
+        return []
+
+    # Build map of (season, constructor_id) → races
+    driver_teams: dict[tuple[int, str], dict] = {}
+    for r in career:
+        cid = r.get("constructor_id", "")
+        season = r.get("season", 0)
+        key = (season, cid)
+        if key not in driver_teams:
+            driver_teams[key] = {"constructor_id": cid, "constructor_name": r.get("constructor", ""), "races": 0}
+        driver_teams[key]["races"] += 1
+
+    # For each team, find other drivers
+    # Fetch all constructors for each season the driver competed
+    seasons = sorted(set(r["season"] for r in career))
+    season_constructors: dict[int, list[str]] = {}
+    for (season, cid) in driver_teams:
+        if season not in season_constructors:
+            season_constructors[season] = []
+        season_constructors[season].append(cid)
+
+    # Find teammates: other drivers in the same (season, constructor)
+    teammate_map: dict[str, dict] = {}  # driver_id → info
+
+    for (season, cid) in driver_teams:
+        # Fetch all results for this constructor in this season
+        # Use season + constructor endpoint
+        offset = 0
+        limit = 200
+        while True:
+            try:
+                data = await ergast_client._get(
+                    f"{season}/constructors/{cid}/results.json?limit={limit}&offset={offset}"
+                )
+                races = data["MRData"]["RaceTable"]["Races"]
+            except Exception:
+                break
+
+            if not races:
+                break
+
+            for race in races:
+                for entry in race.get("Results", []):
+                    did = entry.get("Driver", {}).get("driverId", "")
+                    if did and did != driver_id:
+                        if did not in teammate_map:
+                            teammate_map[did] = {
+                                "driver_id": did,
+                                "seasons": set(),
+                                "constructors": {},
+                                "total_races": 0,
+                            }
+                        teammate_map[did]["seasons"].add(season)
+                        c_name = entry.get("Constructor", {}).get("name", cid)
+                        teammate_map[did]["constructors"][cid] = c_name
+                        teammate_map[did]["total_races"] += 1
+
+            offset += limit
+            total = int(data["MRData"].get("total", 0))
+            if offset >= total or len(races) < limit:
+                break
+
+    # Build final result
+    result = []
+    for did, info in teammate_map.items():
+        result.append({
+            "driver_id": did,
+            "seasons": sorted(info["seasons"]),
+            "constructors": [
+                {"constructor_id": cid, "constructor_name": name}
+                for cid, name in sorted(info["constructors"].items())
+            ],
+            "total_races": info["total_races"],
+        })
+
+    # Sort by total shared seasons (most first)
+    result.sort(key=lambda x: len(x["seasons"]), reverse=True)
+    return result

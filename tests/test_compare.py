@@ -204,3 +204,15 @@ class TestCompareDriversUnit:
         assert data["driver_b"]["info"]["driver_id"] == "hamilton"
         # H2H should show all draws since it's the same driver
         assert data["head_to_head"]["driver_a_wins"] == data["head_to_head"]["driver_b_wins"]
+
+    def test_compare_driver_info_includes_teams(self, compare_test_app, mock_ergast):
+        """Career stats include constructor history (teams)."""
+        r = compare_test_app.get("/api/compare/drivers?a=hamilton&b=max_verstappen")
+        data = r.json()
+        assert "teams" in data["driver_a"]["career"]
+        assert len(data["driver_a"]["career"]["teams"]) > 0
+        team = data["driver_a"]["career"]["teams"][0]
+        assert "constructor_id" in team
+        assert "constructor_name" in team
+        assert "years" in team
+        assert "races" in team
