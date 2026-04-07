@@ -273,26 +273,38 @@ export default function ConstructorPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700">
-                {results.map((result) => (
-                  <tr key={`${result.round}-${result.driver}`} className="hover:bg-gray-700">
-                    <td className="px-4 py-3 text-sm">{result.round}</td>
-                    <td className="px-4 py-3 text-sm">
-                      {result.race_name}
-                      <span className="text-gray-500 ml-1">({result.date})</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm">
-                      {result.driver && (
-                        <Link to={`/driver/${result.driver}`} className="text-red-400 hover:underline">
-                          {result.driver}
-                        </Link>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-medium">P{result.position}</td>
-                    <td className="px-4 py-3 text-sm">{result.grid}</td>
-                    <td className="px-4 py-3 text-sm">{result.points}</td>
-                    <td className="px-4 py-3 text-sm">{result.status}</td>
-                  </tr>
-                ))}
+                {(() => {
+                  // Group results by round
+                  const byRound: Record<number, typeof results> = {};
+                  for (const r of results) {
+                    if (!byRound[r.round]) byRound[r.round] = [];
+                    byRound[r.round].push(r);
+                  }
+                  return Object.values(byRound)
+                    .sort((a, b) => a[0].round - b[0].round)
+                    .map((group) => (
+                      group.map((result, i) => (
+                        <tr key={`${result.round}-${result.driver}-${i}`} className="hover:bg-gray-700">
+                          <td className="px-4 py-3 text-sm">{result.round}</td>
+                          <td className="px-4 py-3 text-sm">
+                            {result.race_name}
+                            <span className="text-gray-500 ml-1">({result.date})</span>
+                          </td>
+                          <td className="px-4 py-3 text-sm">
+                            {result.driver && (
+                              <Link to={`/driver/${result.driver}`} className="text-red-400 hover:underline">
+                                {result.driver}
+                              </Link>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium">P{result.position}</td>
+                          <td className="px-4 py-3 text-sm">{result.grid}</td>
+                          <td className="px-4 py-3 text-sm">{result.points}</td>
+                          <td className="px-4 py-3 text-sm">{result.status}</td>
+                        </tr>
+                      ))
+                    ));
+                })()}
               </tbody>
             </table>
           </div>

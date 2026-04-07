@@ -529,7 +529,7 @@ async def get_constructor_info(constructor_id: str, year: int = 0) -> dict:
     return {
         "constructor": info,
         "season": target_year,
-        "results": season_results[:30],  # limit to 30
+        "results": season_results,
         "season_stats": season_stats,
     }
 

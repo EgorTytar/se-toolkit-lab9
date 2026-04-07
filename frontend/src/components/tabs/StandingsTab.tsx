@@ -12,19 +12,24 @@ export default function StandingsTab() {
   const [error, setError] = useState<string | null>(null);
   const [standings, setStandings] = useState<StandingEntry[]>([]);
 
-  const fetchStandings = async () => {
+  const fetchStandings = async (type: StandingType, yr: number) => {
     setLoading(true);
     setError(null);
     try {
-      const data = standingType === 'drivers'
-        ? await standingsApi.getDriverStandings(year)
-        : await standingsApi.getConstructorStandings(year);
+      const data = type === 'drivers'
+        ? await standingsApi.getDriverStandings(yr)
+        : await standingsApi.getConstructorStandings(yr);
       setStandings(data.standings);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load standings');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTypeChange = (type: StandingType) => {
+    setStandingType(type);
+    fetchStandings(type, year);
   };
 
   return (
@@ -34,42 +39,35 @@ export default function StandingsTab() {
           type="number"
           value={year}
           onChange={(e) => setYear(parseInt(e.target.value))}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleTypeChange(standingType); }}
           className="px-4 py-2 border border-gray-600 rounded-md w-32 bg-gray-800 text-gray-100"
           placeholder="Year"
           min={1950}
           max={new Date().getFullYear() + 1}
         />
-        
+
         <div className="flex space-x-2">
           <button
-            onClick={() => setStandingType('drivers')}
+            onClick={() => handleTypeChange('drivers')}
             className={`px-4 py-2 rounded-md transition ${
               standingType === 'drivers'
                 ? 'bg-red-600 text-white'
                 : 'bg-gray-700 hover:bg-gray-600'
             }`}
           >
-            Drivers
+            {loading ? 'Loading...' : 'Drivers'}
           </button>
           <button
-            onClick={() => setStandingType('constructors')}
+            onClick={() => handleTypeChange('constructors')}
             className={`px-4 py-2 rounded-md transition ${
               standingType === 'constructors'
                 ? 'bg-red-600 text-white'
                 : 'bg-gray-700 hover:bg-gray-600'
             }`}
           >
-            Constructors
+            {loading ? 'Loading...' : 'Constructors'}
           </button>
         </div>
-
-        <button
-          onClick={fetchStandings}
-          disabled={loading}
-          className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition disabled:opacity-50"
-        >
-          {loading ? 'Loading...' : 'Load Standings'}
-        </button>
       </div>
 
       {error && (

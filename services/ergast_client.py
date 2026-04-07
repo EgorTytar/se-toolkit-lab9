@@ -245,6 +245,7 @@ class ErgastClient:
         """Fetch ALL race results for a constructor across their entire history.
 
         Uses pagination (API caps at 100 per page).
+        Returns one entry per driver per race (so 2 entries per race for 2-car teams).
         """
         all_results = []
         offset = 0
@@ -261,26 +262,25 @@ class ErgastClient:
                 break
 
             for race in races:
-                result_entry = race.get("Results", [{}])[0]
-                if not result_entry:
-                    continue
-                driver = result_entry.get("Driver", {})
-                constructor = result_entry.get("Constructor", {})
-                all_results.append({
-                    "season": int(race.get("season", 0)),
-                    "round": int(race.get("round", 0)),
-                    "race_name": race.get("raceName", ""),
-                    "circuit": race.get("Circuit", {}).get("circuitName", ""),
-                    "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
-                    "date": race.get("date", ""),
-                    "position": result_entry.get("position", ""),
-                    "grid": int(result_entry.get("grid", 0)),
-                    "points": float(result_entry.get("points", 0)),
-                    "status": result_entry.get("status", ""),
-                    "driver": driver.get("driverId", ""),
-                    "constructor": constructor.get("name", ""),
-                    "constructor_id": constructor.get("constructorId", ""),
-                })
+                # Each race can have multiple Results entries (one per driver)
+                for result_entry in race.get("Results", []):
+                    driver = result_entry.get("Driver", {})
+                    constructor = result_entry.get("Constructor", {})
+                    all_results.append({
+                        "season": int(race.get("season", 0)),
+                        "round": int(race.get("round", 0)),
+                        "race_name": race.get("raceName", ""),
+                        "circuit": race.get("Circuit", {}).get("circuitName", ""),
+                        "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
+                        "date": race.get("date", ""),
+                        "position": result_entry.get("position", ""),
+                        "grid": int(result_entry.get("grid", 0)),
+                        "points": float(result_entry.get("points", 0)),
+                        "status": result_entry.get("status", ""),
+                        "driver": driver.get("driverId", ""),
+                        "constructor": constructor.get("name", ""),
+                        "constructor_id": constructor.get("constructorId", ""),
+                    })
 
             offset += limit
             if offset >= total:
