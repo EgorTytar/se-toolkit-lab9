@@ -118,6 +118,45 @@ function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearch
   );
 }
 
+interface AvgRowProps {
+  label: string;
+  valA: number | null;
+  valB: number | null;
+  nameA: string;
+  nameB: string;
+  higherIsBetter: (a: number, b: number) => boolean;
+}
+
+function AvgRow({ label, valA, valB, nameA, nameB, higherIsBetter }: AvgRowProps) {
+  const fmt = (v: number | null) =>
+    v === null ? '—' : Number.isInteger(v) ? v.toString() : v.toFixed(2);
+
+  let aClass = 'text-gray-300';
+  let bClass = 'text-gray-300';
+  let better = '—';
+
+  if (valA !== null && valB !== null) {
+    if (higherIsBetter(valA, valB)) {
+      aClass = 'text-green-400 font-semibold';
+      better = nameA;
+    } else if (higherIsBetter(valB, valA)) {
+      bClass = 'text-green-400 font-semibold';
+      better = nameB;
+    } else {
+      better = 'Equal';
+    }
+  }
+
+  return (
+    <tr className="border-b border-gray-700 hover:bg-gray-750">
+      <td className="py-2 px-3 text-gray-300">{label}</td>
+      <td className={`py-2 px-3 text-center ${aClass}`}>{fmt(valA)}</td>
+      <td className={`py-2 px-3 text-center ${bClass}`}>{fmt(valB)}</td>
+      <td className="py-2 px-3 text-center text-xs text-gray-500">{better}</td>
+    </tr>
+  );
+}
+
 interface StatBarProps {
   label: string;
   valueA: number | string;
@@ -397,55 +436,67 @@ export default function CompareTab() {
           {/* Average Stats */}
           <div className="bg-gray-800 rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold mb-4">Averages</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-              {/* Avg Finish */}
-              <div className="bg-gray-700 rounded-lg p-4 text-center">
-                <p className="text-xs text-gray-400 mb-1">Avg Finish</p>
-                <p className="text-xl font-bold">
-                  {data.driver_a.career.avg_finish ?? '—'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {data.driver_b.career.avg_finish ?? '—'}
-                </p>
-              </div>
-              {/* Avg Points/Race */}
-              <div className="bg-gray-700 rounded-lg p-4 text-center">
-                <p className="text-xs text-gray-400 mb-1">Pts/Race</p>
-                <p className="text-xl font-bold">{data.driver_a.career.avg_points}</p>
-                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.avg_points}</p>
-              </div>
-              {/* Avg Grid */}
-              <div className="bg-gray-700 rounded-lg p-4 text-center">
-                <p className="text-xs text-gray-400 mb-1">Avg Grid</p>
-                <p className="text-xl font-bold">
-                  {data.driver_a.career.avg_grid ?? '—'}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  {data.driver_b.career.avg_grid ?? '—'}
-                </p>
-              </div>
-              {/* Win Rate */}
-              <div className="bg-gray-700 rounded-lg p-4 text-center">
-                <p className="text-xs text-gray-400 mb-1">Win Rate</p>
-                <p className="text-xl font-bold text-green-400">{data.driver_a.career.win_pct}%</p>
-                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.win_pct}%</p>
-              </div>
-              {/* Podium Rate */}
-              <div className="bg-gray-700 rounded-lg p-4 text-center">
-                <p className="text-xs text-gray-400 mb-1">Podium Rate</p>
-                <p className="text-xl font-bold">{data.driver_a.career.podium_pct}%</p>
-                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.podium_pct}%</p>
-              </div>
-              {/* DNF Rate */}
-              <div className="bg-gray-700 rounded-lg p-4 text-center">
-                <p className="text-xs text-gray-400 mb-1">DNF Rate</p>
-                <p className="text-xl font-bold text-red-400">{data.driver_a.career.dnf_pct}%</p>
-                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.dnf_pct}%</p>
-              </div>
-            </div>
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
-              <span>← {data.driver_a.info.given_name}</span>
-              <span>{data.driver_b.info.given_name} →</span>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-700 text-gray-400">
+                    <th className="py-2 px-3 text-left">Stat</th>
+                    <th className="py-2 px-3 text-center">{data.driver_a.info.given_name}</th>
+                    <th className="py-2 px-3 text-center">{data.driver_b.info.given_name}</th>
+                    <th className="py-2 px-3 text-center text-gray-500 text-xs">Better</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <AvgRow
+                    label="Avg Finish Position"
+                    valA={data.driver_a.career.avg_finish}
+                    valB={data.driver_b.career.avg_finish}
+                    nameA={data.driver_a.info.given_name}
+                    nameB={data.driver_b.info.given_name}
+                    higherIsBetter={(a, b) => a < b}
+                  />
+                  <AvgRow
+                    label="Avg Points / Race"
+                    valA={data.driver_a.career.avg_points}
+                    valB={data.driver_b.career.avg_points}
+                    nameA={data.driver_a.info.given_name}
+                    nameB={data.driver_b.info.given_name}
+                    higherIsBetter={(a, b) => a > b}
+                  />
+                  <AvgRow
+                    label="Avg Grid Position"
+                    valA={data.driver_a.career.avg_grid}
+                    valB={data.driver_b.career.avg_grid}
+                    nameA={data.driver_a.info.given_name}
+                    nameB={data.driver_b.info.given_name}
+                    higherIsBetter={(a, b) => a < b}
+                  />
+                  <AvgRow
+                    label="Win Rate"
+                    valA={data.driver_a.career.win_pct}
+                    valB={data.driver_b.career.win_pct}
+                    nameA={data.driver_a.info.given_name}
+                    nameB={data.driver_b.info.given_name}
+                    higherIsBetter={(a, b) => a > b}
+                  />
+                  <AvgRow
+                    label="Podium Rate"
+                    valA={data.driver_a.career.podium_pct}
+                    valB={data.driver_b.career.podium_pct}
+                    nameA={data.driver_a.info.given_name}
+                    nameB={data.driver_b.info.given_name}
+                    higherIsBetter={(a, b) => a > b}
+                  />
+                  <AvgRow
+                    label="DNF Rate"
+                    valA={data.driver_a.career.dnf_pct}
+                    valB={data.driver_b.career.dnf_pct}
+                    nameA={data.driver_a.info.given_name}
+                    nameB={data.driver_b.info.given_name}
+                    higherIsBetter={(a, b) => a < b}
+                  />
+                </tbody>
+              </table>
             </div>
           </div>
 
