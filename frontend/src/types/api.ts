@@ -156,6 +156,16 @@ export interface ChatSessionWithMessages extends ChatSession {
 }
 
 // Comparison types
+export interface ConstructorTeam {
+  constructor_id: string;
+  constructor_name: string;
+  years: number[];
+  races: number;
+  wins: number;
+  podiums: number;
+  points: number;
+}
+
 export interface DriverCareerStats {
   races: number;
   wins: number;
@@ -167,6 +177,7 @@ export interface DriverCareerStats {
   worst_finish: number | null;
   dnfs: number;
   seasons_competed: number[];
+  teams: ConstructorTeam[];
 }
 
 export interface H2HRaceDetail {

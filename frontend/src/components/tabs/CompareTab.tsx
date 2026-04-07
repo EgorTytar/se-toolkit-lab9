@@ -348,6 +348,52 @@ export default function CompareTab() {
             )}
           </div>
 
+          {/* Constructor History */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">
+                {data.driver_a.info.given_name}'s Teams
+              </h3>
+              {data.driver_a.career.teams.map((team) => (
+                <div key={team.constructor_id} className="border-b border-gray-700 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-100">{team.constructor_name}</span>
+                    <span className="text-xs text-gray-500">
+                      {team.years[0]}–{team.years[team.years.length - 1]}
+                    </span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-gray-400 mt-1">
+                    <span>{team.races} races</span>
+                    <span className={team.wins > 0 ? 'text-green-400' : ''}>{team.wins}W</span>
+                    <span>{team.podiums}P</span>
+                    <span>{team.points} pts</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-gray-800 rounded-lg p-6">
+              <h3 className="text-lg font-semibold mb-4">
+                {data.driver_b.info.given_name}'s Teams
+              </h3>
+              {data.driver_b.career.teams.map((team) => (
+                <div key={team.constructor_id} className="border-b border-gray-700 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium text-gray-100">{team.constructor_name}</span>
+                    <span className="text-xs text-gray-500">
+                      {team.years[0]}–{team.years[team.years.length - 1]}
+                    </span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-gray-400 mt-1">
+                    <span>{team.races} races</span>
+                    <span className={team.wins > 0 ? 'text-green-400' : ''}>{team.wins}W</span>
+                    <span>{team.podiums}P</span>
+                    <span>{team.points} pts</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Head-to-Head Summary */}
           <div className="bg-gray-800 rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold mb-4">

@@ -99,6 +99,10 @@ async def compare_drivers(a: str, b: str) -> dict:
     driver_a_career["championships"] = await _count_championships(a, a_seasons)
     driver_b_career["championships"] = await _count_championships(b, b_seasons)
 
+    # Build constructor history
+    driver_a_career["teams"] = _compute_constructor_history(a_all_results)
+    driver_b_career["teams"] = _compute_constructor_history(b_all_results)
+
     # Compute head-to-head record
     h2h = _compute_head_to_head(a_all_results, b_all_results)
 
@@ -184,6 +188,65 @@ async def _count_championships(driver_id: str, seasons: set[int]) -> int:
         except Exception:
             pass
     return championships
+
+
+def _compute_constructor_history(results: list[dict]) -> list[dict]:
+    """Compute the constructor history for a driver.
+
+    Returns a list of teams the driver has raced for, with:
+    - constructor name & ID
+    - years driven
+    - total races, wins, podiums, points with that team
+    """
+    teams: dict[str, dict] = {}
+
+    for r in results:
+        constructor_id = r.get("constructor_id", "unknown")
+        constructor_name = r.get("constructor", "Unknown")
+        season = r.get("season", 0)
+        pos_str = str(r.get("position", ""))
+        points = float(r.get("points", 0))
+
+        if constructor_id not in teams:
+            teams[constructor_id] = {
+                "constructor_id": constructor_id,
+                "constructor_name": constructor_name,
+                "years": set(),
+                "races": 0,
+                "wins": 0,
+                "podiums": 0,
+                "points": 0.0,
+            }
+
+        team = teams[constructor_id]
+        team["years"].add(season)
+        team["races"] += 1
+        team["points"] += points
+
+        if pos_str.isdigit():
+            pos = int(pos_str)
+            if pos == 1:
+                team["wins"] += 1
+            if pos <= 3:
+                team["podiums"] += 1
+
+    # Convert to sorted list (most races first)
+    return sorted(
+        [
+            {
+                "constructor_id": t["constructor_id"],
+                "constructor_name": t["constructor_name"],
+                "years": sorted(t["years"]),
+                "races": t["races"],
+                "wins": t["wins"],
+                "podiums": t["podiums"],
+                "points": t["points"],
+            }
+            for t in teams.values()
+        ],
+        key=lambda t: t["races"],
+        reverse=True,
+    )
 
 
 def _compute_head_to_head(

@@ -149,6 +149,7 @@ class ErgastClient:
             result_entry = race.get("Results", [{}])[0]
             if not result_entry:
                 continue
+            constructor = result_entry.get("Constructor", {})
             results.append({
                 "round": int(race.get("round", 0)),
                 "race_name": race.get("raceName", ""),
@@ -159,6 +160,8 @@ class ErgastClient:
                 "grid": int(result_entry.get("grid", 0)),
                 "points": float(result_entry.get("points", 0)),
                 "status": result_entry.get("status", ""),
+                "constructor": constructor.get("name", ""),
+                "constructor_id": constructor.get("constructorId", ""),
             })
 
         return results
@@ -215,6 +218,7 @@ class ErgastClient:
                 result_entry = race.get("Results", [{}])[0]
                 if not result_entry:
                     continue
+                constructor = result_entry.get("Constructor", {})
                 all_results.append({
                     "season": int(race.get("season", 0)),
                     "round": int(race.get("round", 0)),
@@ -226,6 +230,8 @@ class ErgastClient:
                     "grid": int(result_entry.get("grid", 0)),
                     "points": float(result_entry.get("points", 0)),
                     "status": result_entry.get("status", ""),
+                    "constructor": constructor.get("name", ""),
+                    "constructor_id": constructor.get("constructorId", ""),
                 })
 
             offset += limit
