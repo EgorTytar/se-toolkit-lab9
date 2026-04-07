@@ -38,8 +38,16 @@ function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearch
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Reset when parent clears the value (e.g. after compare)
+  useEffect(() => {
+    if (!value) {
+      setQuery('');
+    }
+  }, [value]);
+
   const handleInputChange = (val: string) => {
     setQuery(val);
+    if (val.trim()) onChange('');
     setShowSuggestions(true);
 
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -59,7 +67,7 @@ function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearch
       } finally {
         setLoading(false);
       }
-    }, 200); // debounce
+    }, 200);
   };
 
   const selectDriver = (driver: DriverOption) => {
@@ -67,11 +75,6 @@ function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearch
     onChange(driver.driver_id);
     setShowSuggestions(false);
   };
-
-  // Pre-fill display if we have a value but no query text (e.g. after reset)
-  useEffect(() => {
-    if (!value && query) setQuery('');
-  }, [value, query]);
 
   return (
     <div className="relative flex-1" ref={wrapperRef}>
