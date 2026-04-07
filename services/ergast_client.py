@@ -20,7 +20,7 @@ class ErgastClient:
             self._client = httpx.AsyncClient(timeout=self.timeout)
         return self._client
 
-    async def _get(self, url: str, retries: int = 3) -> dict:
+    async def _get(self, url: str, retries: int = 5) -> dict:
         """Perform an async GET request to the Ergast API with retry on 429."""
         client = await self._get_client()
         last_response = None
@@ -28,7 +28,7 @@ class ErgastClient:
             response = await client.get(f"{self.base_url}/{url}")
             last_response = response
             if response.status_code == 429:
-                wait = 2 ** (attempt + 1)  # exponential backoff: 2s, 4s, 8s
+                wait = 2 ** (attempt + 1)  # 2s, 4s, 8s, 16s, 32s
                 await asyncio.sleep(wait)
                 continue
             response.raise_for_status()
@@ -108,6 +108,7 @@ class ErgastClient:
         return [
             {
                 "position": int(s.get("position", 0)),
+                "constructor_id": s.get("Constructor", {}).get("constructorId", ""),
                 "constructor": s.get("Constructor", {}).get("name", "Unknown"),
                 "nationality": s.get("Constructor", {}).get("nationality", ""),
                 "points": float(s.get("points", 0)),
@@ -239,6 +240,103 @@ class ErgastClient:
                 break
 
         return all_results
+
+    async def get_constructor_all_results(self, constructor_ref: str) -> list[dict]:
+        """Fetch ALL race results for a constructor across their entire history.
+
+        Uses pagination (API caps at 100 per page).
+        Returns one entry per driver per race (so 2 entries per race for 2-car teams).
+        """
+        all_results = []
+        offset = 0
+        limit = 100
+
+        while True:
+            data = await self._get(
+                f"constructors/{constructor_ref}/results.json?limit={limit}&offset={offset}"
+            )
+            try:
+                races = data["MRData"]["RaceTable"]["Races"]
+                total = int(data["MRData"].get("total", 0))
+            except (KeyError, IndexError):
+                break
+
+            for race in races:
+                # Each race can have multiple Results entries (one per driver)
+                for result_entry in race.get("Results", []):
+                    driver = result_entry.get("Driver", {})
+                    constructor = result_entry.get("Constructor", {})
+                    all_results.append({
+                        "season": int(race.get("season", 0)),
+                        "round": int(race.get("round", 0)),
+                        "race_name": race.get("raceName", ""),
+                        "circuit": race.get("Circuit", {}).get("circuitName", ""),
+                        "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
+                        "date": race.get("date", ""),
+                        "position": result_entry.get("position", ""),
+                        "grid": int(result_entry.get("grid", 0)),
+                        "points": float(result_entry.get("points", 0)),
+                        "status": result_entry.get("status", ""),
+                        "driver": driver.get("driverId", ""),
+                        "constructor": constructor.get("name", ""),
+                        "constructor_id": constructor.get("constructorId", ""),
+                    })
+
+            offset += limit
+            if offset >= total:
+                break
+
+        return all_results
+
+    async def get_constructor_info(self, constructor_ref: str) -> dict:
+        """Fetch basic info for a constructor."""
+        data = await self._get(f"constructors/{constructor_ref}.json")
+        try:
+            constructor = data["MRData"]["ConstructorTable"]["Constructors"][0]
+        except (KeyError, IndexError):
+            raise ValueError(f"Constructor '{constructor_ref}' not found")
+
+        return {
+            "constructor_id": constructor.get("constructorId", ""),
+            "name": constructor.get("name", ""),
+            "nationality": constructor.get("nationality", ""),
+            "url": constructor.get("url", ""),
+        }
+
+    async def get_all_constructors(self) -> list[dict]:
+        """Fetch ALL F1 constructors for search/autocomplete.
+
+        Cached on first call to avoid repeated API hits.
+        API caps at 100 per page, so we paginate accordingly.
+        """
+        all_constructors: list[dict] = []
+        offset = 0
+        limit = 100
+
+        while True:
+            data = await self._get(f"constructors.json?limit={limit}&offset={offset}")
+            try:
+                constructors = data["MRData"]["ConstructorTable"]["Constructors"]
+                total = int(data["MRData"].get("total", 0))
+            except (KeyError, IndexError):
+                break
+
+            if not constructors:
+                break
+
+            for c in constructors:
+                all_constructors.append({
+                    "constructor_id": c.get("constructorId", ""),
+                    "name": c.get("name", ""),
+                    "nationality": c.get("nationality", ""),
+                    "url": c.get("url", ""),
+                })
+
+            offset += limit
+            if offset >= total or len(constructors) < limit:
+                break
+
+        return all_constructors
 
     async def get_all_drivers(self) -> list[dict]:
         """Fetch ALL F1 drivers (879+) for search/autocomplete.

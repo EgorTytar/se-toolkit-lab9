@@ -136,7 +136,11 @@ export default function LatestRaceTab() {
                     {results.podium[1].name}
                   </Link>
                 </span>
-                <span className="text-sm text-gray-400">{results.podium[1].constructor}</span>
+                <span className="text-sm text-gray-400">
+                  <Link to={`/constructor/${results.podium[1].constructor.toLowerCase().replace(/ /g, '_')}`} className="text-gray-500 hover:text-red-400">
+                    {results.podium[1].constructor}
+                  </Link>
+                </span>
                 <span className="text-sm text-gray-400 mt-1">{results.podium[1].points} pts</span>
               </div>
             </div>
@@ -152,7 +156,11 @@ export default function LatestRaceTab() {
                     {results.podium[0].name}
                   </Link>
                 </span>
-                <span className="text-sm text-gray-400">{results.podium[0].constructor}</span>
+                <span className="text-sm text-gray-400">
+                  <Link to={`/constructor/${results.podium[0].constructor.toLowerCase().replace(/ /g, '_')}`} className="text-gray-500 hover:text-red-400">
+                    {results.podium[0].constructor}
+                  </Link>
+                </span>
                 <span className="text-sm text-gray-400 mt-1">{results.podium[0].points} pts</span>
               </div>
             </div>
@@ -168,7 +176,11 @@ export default function LatestRaceTab() {
                     {results.podium[2].name}
                   </Link>
                 </span>
-                <span className="text-sm text-gray-400">{results.podium[2].constructor}</span>
+                <span className="text-sm text-gray-400">
+                  <Link to={`/constructor/${results.podium[2].constructor.toLowerCase().replace(/ /g, '_')}`} className="text-gray-500 hover:text-red-400">
+                    {results.podium[2].constructor}
+                  </Link>
+                </span>
                 <span className="text-sm text-gray-400 mt-1">{results.podium[2].points} pts</span>
               </div>
             </div>
@@ -183,7 +195,7 @@ export default function LatestRaceTab() {
           <Link to={`/driver/${results.winner.driver_id}`} className="text-green-300 hover:underline font-medium">
             {results.winner.name}
           </Link>
-          {' '}({results.winner.constructor}) — {results.winner.points} pts
+          {' '}(<Link to={`/constructor/${results.winner.constructor.toLowerCase().replace(/ /g, '_')}`} className="text-red-400 hover:underline">{results.winner.constructor}</Link>) — {results.winner.points} pts
         </div>
       )}
 

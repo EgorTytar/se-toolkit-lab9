@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { compareApi } from '../../services/api';
-import type { DriverComparisonResponse, H2HRaceDetail, TeammateInfo } from '../../types/api';
+import type { DriverComparisonResponse, H2HRaceDetail, TeammateInfo, ConstructorComparisonResponse, ConstructorH2HRaceDetail } from '../../types/api';
 
-type CompareMode = 'h2h' | 'teammates';
+type CompareMode = 'h2h' | 'teammates' | 'teams';
 
 interface DriverOption {
   driver_id: string;
@@ -10,6 +11,12 @@ interface DriverOption {
   full_name: string;
   nationality: string;
   permanent_number: string;
+}
+
+interface ConstructorOption {
+  constructor_id: string;
+  name: string;
+  nationality: string;
 }
 
 // ── Searchable Driver Selector ──
@@ -332,7 +339,9 @@ function ComparisonResult({ data }: { data: DriverComparisonResponse }) {
           {data.driver_a.career.teams.map((team) => (
             <div key={team.constructor_id} className="border-b border-gray-700 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-100">{team.constructor_name}</span>
+                <Link to={`/constructor/${team.constructor_id}`} className="font-medium text-gray-100 hover:text-red-400 hover:underline">
+                  {team.constructor_name}
+                </Link>
                 <span className="text-xs text-gray-500">
                   {team.years[0]}–{team.years[team.years.length - 1]}
                 </span>
@@ -353,7 +362,9 @@ function ComparisonResult({ data }: { data: DriverComparisonResponse }) {
           {data.driver_b.career.teams.map((team) => (
             <div key={team.constructor_id} className="border-b border-gray-700 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-100">{team.constructor_name}</span>
+                <Link to={`/constructor/${team.constructor_id}`} className="font-medium text-gray-100 hover:text-red-400 hover:underline">
+                  {team.constructor_name}
+                </Link>
                 <span className="text-xs text-gray-500">
                   {team.years[0]}–{team.years[team.years.length - 1]}
                 </span>
@@ -521,6 +532,261 @@ function ComparisonResult({ data }: { data: DriverComparisonResponse }) {
   );
 }
 
+// ── Constructor Search Input ──
+
+interface ConstructorSearchInputProps {
+  label: string;
+  value: string;
+  onChange: (constructorId: string, displayText?: string) => void;
+  placeholder?: string;
+  displayValue?: string;
+}
+
+function ConstructorSearchInput({ label, value, onChange, placeholder, displayValue }: ConstructorSearchInputProps) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<ConstructorOption[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!value) {
+      setQuery('');
+    } else if (displayValue) {
+      setQuery(displayValue);
+    }
+  }, [value, displayValue]);
+
+  const handleInputChange = (val: string) => {
+    setQuery(val);
+    if (val.trim()) onChange('');
+    setShowSuggestions(true);
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (val.trim().length < 1) {
+      setSuggestions([]);
+      return;
+    }
+
+    setLoading(true);
+    timerRef.current = setTimeout(async () => {
+      try {
+        const results = await compareApi.searchConstructors(val.trim());
+        setSuggestions(results);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 200);
+  };
+
+  const selectConstructor = (constructor: ConstructorOption) => {
+    const display = constructor.name;
+    setQuery(display);
+    onChange(constructor.constructor_id, display);
+    setShowSuggestions(false);
+  };
+
+  return (
+    <div className="relative flex-1" ref={wrapperRef}>
+      <label className="block text-sm text-gray-400 mb-1">{label}</label>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleInputChange(e.target.value)}
+        onFocus={() => query.trim().length >= 1 && setShowSuggestions(true)}
+        placeholder={placeholder}
+        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+      />
+      {loading && (
+        <div className="absolute right-3 top-9">
+          <div className="animate-spin h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full"></div>
+        </div>
+      )}
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded shadow-xl max-h-60 overflow-y-auto">
+          {suggestions.map((c) => (
+            <button
+              key={c.constructor_id}
+              onClick={() => selectConstructor(c)}
+              className="w-full text-left px-3 py-2 hover:bg-gray-600 text-sm flex items-center justify-between transition"
+            >
+              <span className="text-gray-100">{c.name}</span>
+              <span className="text-gray-400 text-xs ml-2">{c.nationality}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {showSuggestions && suggestions.length === 0 && query.trim().length >= 1 && !loading && (
+        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded shadow-xl p-3 text-sm text-gray-400 text-center">
+          No teams found
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Constructor Comparison Result Component ──
+
+function ConstructorComparisonResult({ data }: { data: ConstructorComparisonResponse }) {
+  const [h2hLimit, setH2hLimit] = useState(20);
+
+  return (
+    <div>
+      {/* Constructor Headers */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-gray-800 rounded-lg p-5 text-center">
+          <h3 className="text-xl font-bold text-red-400">{data.constructor_a.info.name}</h3>
+          <p className="text-gray-400 text-sm">{data.constructor_a.info.nationality}</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-5 text-center">
+          <h3 className="text-xl font-bold text-red-400">{data.constructor_b.info.name}</h3>
+          <p className="text-gray-400 text-sm">{data.constructor_b.info.nationality}</p>
+        </div>
+      </div>
+
+      {/* Career Stats */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">Career Statistics</h3>
+        <StatBar label="Races" valueA={data.constructor_a.career.races} valueB={data.constructor_b.career.races} maxVal={Math.max(data.constructor_a.career.races, data.constructor_b.career.races)} />
+        <StatBar label="Wins" valueA={data.constructor_a.career.wins} valueB={data.constructor_b.career.wins} maxVal={Math.max(data.constructor_a.career.wins, data.constructor_b.career.wins)} />
+        <StatBar label="Podiums" valueA={data.constructor_a.career.podiums} valueB={data.constructor_b.career.podiums} maxVal={Math.max(data.constructor_a.career.podiums, data.constructor_b.career.podiums)} />
+        <StatBar label="Pole Positions" valueA={data.constructor_a.career.poles} valueB={data.constructor_b.career.poles} maxVal={Math.max(data.constructor_a.career.poles, data.constructor_b.career.poles)} />
+        <StatBar label="Points" valueA={data.constructor_a.career.points} valueB={data.constructor_b.career.points} maxVal={Math.max(data.constructor_a.career.points, data.constructor_b.career.points)} />
+        <StatBar label="Championships" valueA={data.constructor_a.career.championships} valueB={data.constructor_b.career.championships} maxVal={Math.max(data.constructor_a.career.championships, data.constructor_b.career.championships)} />
+      </div>
+
+      {/* Averages */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">Averages</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-700 text-gray-400">
+                <th className="py-2 px-3 text-left">Stat</th>
+                <th className="py-2 px-3 text-center">{data.constructor_a.info.name}</th>
+                <th className="py-2 px-3 text-center">{data.constructor_b.info.name}</th>
+                <th className="py-2 px-3 text-center text-gray-500 text-xs">Better</th>
+              </tr>
+            </thead>
+            <tbody>
+              <AvgRow label="Avg Finish Position" valA={data.constructor_a.career.avg_finish} valB={data.constructor_b.career.avg_finish} nameA={data.constructor_a.info.name} nameB={data.constructor_b.info.name} higherIsBetter={(a, b) => a < b} />
+              <AvgRow label="Avg Points / Race" valA={data.constructor_a.career.avg_points} valB={data.constructor_b.career.avg_points} nameA={data.constructor_a.info.name} nameB={data.constructor_b.info.name} higherIsBetter={(a, b) => a > b} />
+              <AvgRow label="Avg Grid Position" valA={data.constructor_a.career.avg_grid} valB={data.constructor_b.career.avg_grid} nameA={data.constructor_a.info.name} nameB={data.constructor_b.info.name} higherIsBetter={(a, b) => a < b} />
+              <AvgRow label="Win Rate" valA={data.constructor_a.career.win_pct} valB={data.constructor_b.career.win_pct} nameA={data.constructor_a.info.name} nameB={data.constructor_b.info.name} higherIsBetter={(a, b) => a > b} />
+              <AvgRow label="Podium Rate" valA={data.constructor_a.career.podium_pct} valB={data.constructor_b.career.podium_pct} nameA={data.constructor_a.info.name} nameB={data.constructor_b.info.name} higherIsBetter={(a, b) => a > b} />
+              <AvgRow label="DNF Rate" valA={data.constructor_a.career.dnf_pct} valB={data.constructor_b.career.dnf_pct} nameA={data.constructor_a.info.name} nameB={data.constructor_b.info.name} higherIsBetter={(a, b) => a < b} />
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Head-to-Head Summary */}
+      <div className="bg-gray-800 rounded-lg p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">
+          Head-to-Head ({data.head_to_head.shared_races} shared races, {data.head_to_head.shared_seasons.length} seasons)
+        </h3>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="bg-gray-700 rounded-lg p-4">
+            <p className="text-3xl font-bold text-green-400">{data.head_to_head.constructor_a_wins}</p>
+            <p className="text-sm text-gray-400 mt-1">{data.constructor_a.info.name}</p>
+          </div>
+          <div className="bg-gray-700 rounded-lg p-4">
+            <p className="text-3xl font-bold text-gray-300">{data.head_to_head.draws}</p>
+            <p className="text-sm text-gray-400 mt-1">Draws</p>
+          </div>
+          <div className="bg-gray-700 rounded-lg p-4">
+            <p className="text-3xl font-bold text-green-400">{data.head_to_head.constructor_b_wins}</p>
+            <p className="text-sm text-gray-400 mt-1">{data.constructor_b.info.name}</p>
+          </div>
+        </div>
+        {data.head_to_head.shared_races > 0 && (
+          <div className="mt-4 flex h-4 rounded overflow-hidden bg-gray-700">
+            <div className="bg-green-500 transition-all" style={{ width: `${(data.head_to_head.constructor_a_wins / data.head_to_head.shared_races) * 100}%` }} />
+            <div className="bg-gray-500 transition-all" style={{ width: `${(data.head_to_head.draws / data.head_to_head.shared_races) * 100}%` }} />
+            <div className="bg-blue-500 transition-all" style={{ width: `${(data.head_to_head.constructor_b_wins / data.head_to_head.shared_races) * 100}%` }} />
+          </div>
+        )}
+      </div>
+
+      {/* Race-by-Race Breakdown */}
+      {data.head_to_head.race_details.length > 0 && (
+        <div className="bg-gray-800 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Race-by-Race Breakdown (best car per team)</h3>
+            {data.head_to_head.race_details.length > h2hLimit && (
+              <button onClick={() => setH2hLimit((prev) => prev + 50)} className="text-sm text-red-400 hover:text-red-300 transition">
+                Show more ({data.head_to_head.race_details.length - h2hLimit} remaining)
+              </button>
+            )}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-700 text-gray-400">
+                  <th className="py-2 px-3 text-left">Year</th>
+                  <th className="py-2 px-3 text-left">Rnd</th>
+                  <th className="py-2 px-3 text-left">Race</th>
+                  <th className="py-2 px-3 text-center">{data.constructor_a.info.name}</th>
+                  <th className="py-2 px-3 text-center">W</th>
+                  <th className="py-2 px-3 text-center">{data.constructor_b.info.name}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.head_to_head.race_details.slice(0, h2hLimit).map((detail, idx) => (
+                  <ConstructorH2HRow key={idx} detail={detail} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ConstructorH2HRow({ detail }: { detail: ConstructorH2HRaceDetail }) {
+  const winnerClass = (w: 'a' | 'b' | 'draw') => {
+    if (w === 'a') return 'text-green-400';
+    if (w === 'b') return 'text-green-400';
+    return 'text-gray-400';
+  };
+
+  return (
+    <tr className="border-b border-gray-700 hover:bg-gray-800 text-sm">
+      <td className="py-2 px-3">{detail.season}</td>
+      <td className="py-2 px-3">{detail.round}</td>
+      <td className="py-2 px-3 max-w-[200px] truncate">{detail.race_name}</td>
+      <td className="py-2 px-3 text-center">
+        P{detail.constructor_a.position || 'DNF'}
+        <span className="text-gray-500 ml-1">({detail.constructor_a.points} pts)</span>
+        {detail.constructor_a.driver && <span className="text-gray-500 ml-1">({detail.constructor_a.driver})</span>}
+      </td>
+      <td className={`py-2 px-3 text-center font-medium ${winnerClass(detail.winner)}`}>
+        {detail.winner === 'a' ? '✅' : detail.winner === 'b' ? '✅' : '—'}
+      </td>
+      <td className="py-2 px-3 text-center">
+        P{detail.constructor_b.position || 'DNF'}
+        <span className="text-gray-500 ml-1">({detail.constructor_b.points} pts)</span>
+        {detail.constructor_b.driver && <span className="text-gray-500 ml-1">({detail.constructor_b.driver})</span>}
+      </td>
+    </tr>
+  );
+}
+
 // ── Main CompareTab ──
 
 export default function CompareTab() {
@@ -541,6 +807,15 @@ export default function CompareTab() {
   const [teammates, setTeammates] = useState<TeammateInfo[]>([]);
   const [teammatesLoading, setTeammatesLoading] = useState(false);
   const [teammatesError, setTeammatesError] = useState<string | null>(null);
+
+  // Teams (constructor comparison) state
+  const [constructorA, setConstructorA] = useState('');
+  const [constructorB, setConstructorB] = useState('');
+  const [constructorADisplay, setConstructorADisplay] = useState('');
+  const [constructorBDisplay, setConstructorBDisplay] = useState('');
+  const [constructorData, setConstructorData] = useState<ConstructorComparisonResponse | null>(null);
+  const [constructorsLoading, setConstructorsLoading] = useState(false);
+  const [constructorsError, setConstructorsError] = useState<string | null>(null);
 
   const handleCompare = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -638,7 +913,7 @@ export default function CompareTab() {
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
         >
-          Compare Two Drivers
+          Drivers
         </button>
         <button
           onClick={() => setMode('teammates')}
@@ -648,7 +923,17 @@ export default function CompareTab() {
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
           }`}
         >
-          Compare with Teammates
+          Teammates
+        </button>
+        <button
+          onClick={() => setMode('teams')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+            mode === 'teams'
+              ? 'bg-red-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          Teams
         </button>
       </div>
 
@@ -788,6 +1073,83 @@ export default function CompareTab() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Teams Mode (Constructor Comparison) ── */}
+      {mode === 'teams' && (
+        <div>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!constructorA.trim() || !constructorB.trim()) {
+                setConstructorsError('Please select both teams.');
+                return;
+              }
+              if (constructorA.trim().toLowerCase() === constructorB.trim().toLowerCase()) {
+                setConstructorsError('Please select two different teams.');
+                return;
+              }
+              setConstructorsLoading(true);
+              setConstructorsError(null);
+              setConstructorData(null);
+              try {
+                const result = await compareApi.compareConstructors(constructorA.trim(), constructorB.trim());
+                setConstructorData(result);
+              } catch {
+                setConstructorsError('Failed to compare teams.');
+              } finally {
+                setConstructorsLoading(false);
+              }
+            }}
+            className="bg-gray-800 rounded-lg p-6 mb-6"
+          >
+            <h2 className="text-lg font-semibold mb-4">Compare Two Teams</h2>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <ConstructorSearchInput
+                label="Team A"
+                value={constructorA}
+                onChange={(id, display) => {
+                  setConstructorA(id);
+                  if (display) setConstructorADisplay(display);
+                }}
+                placeholder="Type a team name..."
+                displayValue={constructorADisplay}
+              />
+              <ConstructorSearchInput
+                label="Team B"
+                value={constructorB}
+                onChange={(id, display) => {
+                  setConstructorB(id);
+                  if (display) setConstructorBDisplay(display);
+                }}
+                placeholder="Type a team name..."
+                displayValue={constructorBDisplay}
+              />
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={constructorsLoading || !constructorA || !constructorB}
+                  className="px-6 py-2 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {constructorsLoading ? 'Comparing...' : 'Compare'}
+                </button>
+              </div>
+            </div>
+            {constructorsError && <p className="text-red-400 text-sm mt-3">{constructorsError}</p>}
+            <p className="text-gray-500 text-xs mt-2">
+              Start typing to search — matches by team name or nationality.
+            </p>
+          </form>
+
+          {constructorsLoading && (
+            <div className="text-center py-12">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-red-500 border-t-transparent"></div>
+              <p className="text-gray-400 mt-3">Fetching team data...</p>
+            </div>
+          )}
+
+          {constructorData && !constructorsLoading && <ConstructorComparisonResult data={constructorData} />}
         </div>
       )}
     </div>
