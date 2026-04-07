@@ -177,6 +177,16 @@ export const chatApi = {
 
 // Comparison endpoints
 export const compareApi = {
+  searchDrivers: (query: string) =>
+    apiFetch<Array<{
+      driver_id: string;
+      code: string;
+      given_name: string;
+      family_name: string;
+      full_name: string;
+      nationality: string;
+      permanent_number: string;
+    }>>(`${BASE}/api/compare/drivers/search?q=${encodeURIComponent(query)}`),
   compareDrivers: (driverA: string, driverB: string) =>
     apiFetch<DriverComparisonResponse>(
       `${BASE}/api/compare/drivers?a=${encodeURIComponent(driverA)}&b=${encodeURIComponent(driverB)}`,

@@ -234,6 +234,45 @@ class ErgastClient:
 
         return all_results
 
+    async def get_all_drivers(self) -> list[dict]:
+        """Fetch ALL F1 drivers (879+) for search/autocomplete.
+
+        Cached on first call to avoid repeated API hits.
+        API caps at 100 per page, so we paginate accordingly.
+        """
+        all_drivers: list[dict] = []
+        offset = 0
+        limit = 100  # API maximum
+
+        while True:
+            data = await self._get(f"drivers.json?limit={limit}&offset={offset}")
+            try:
+                drivers = data["MRData"]["DriverTable"]["Drivers"]
+                total = int(data["MRData"].get("total", 0))
+            except (KeyError, IndexError):
+                break
+
+            if not drivers:
+                break
+
+            for driver in drivers:
+                all_drivers.append({
+                    "driver_id": driver.get("driverId", ""),
+                    "code": driver.get("code", ""),
+                    "given_name": driver.get("givenName", ""),
+                    "family_name": driver.get("familyName", ""),
+                    "full_name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
+                    "date_of_birth": driver.get("dateOfBirth", ""),
+                    "nationality": driver.get("nationality", ""),
+                    "permanent_number": driver.get("permanentNumber", ""),
+                })
+
+            offset += limit
+            if offset >= total or len(drivers) < limit:
+                break
+
+        return all_drivers
+
     async def get_circuit_recent_results(self, circuit_id: str, limit: int = 5) -> list[dict]:
         """Fetch up to `limit` most recent race results at a circuit.
 

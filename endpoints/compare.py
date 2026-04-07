@@ -3,7 +3,7 @@
 import datetime
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from services.ergast_client import ErgastClient
 
@@ -11,6 +11,45 @@ router = APIRouter(prefix="/api/compare", tags=["compare"])
 
 ergast_client = ErgastClient()
 logger = logging.getLogger(__name__)
+
+# In-memory cache for the full driver list (fetched once from API)
+_cached_drivers: list[dict] | None = None
+
+
+@router.get("/drivers/search")
+async def search_drivers(q: str = Query(..., min_length=1, max_length=100)) -> list[dict]:
+    """Search F1 drivers by name.
+
+    Query param:
+        q — search query (matched against full name, given name, family name, or code)
+
+    Returns up to 20 matching drivers. Results are cached after first API fetch.
+    """
+    global _cached_drivers
+
+    # Fetch and cache all drivers on first call
+    if _cached_drivers is None:
+        try:
+            _cached_drivers = await ergast_client.get_all_drivers()
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to fetch driver list: {e}") from e
+
+    query = q.lower()
+    results = []
+    for driver in _cached_drivers:
+        full_name = driver["full_name"].lower()
+        given = driver["given_name"].lower()
+        family = driver["family_name"].lower()
+        code = driver.get("code", "").lower()
+        driver_id = driver["driver_id"].lower()
+
+        # Exact match on any field gets priority
+        if query in full_name or query in given or query in family or query in code or query in driver_id:
+            results.append(driver)
+            if len(results) >= 20:
+                break
+
+    return results
 
 
 @router.get("/drivers")

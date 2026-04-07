@@ -242,6 +242,7 @@ lifespan(app):
 | GET | `/api/drivers/{driver_id}` | Driver profile + season results | ❌ |
 | GET | `/api/circuits/{circuit_id}` | Circuit info + recent results | ❌ |
 | GET | `/api/compare/drivers?a=X&b=Y` | Driver head-to-head comparison | ❌ |
+| GET | `/api/compare/drivers/search?q=ham` | Search drivers by name/code | ❌ |
 
 ### Authenticated Endpoints (JWT required)
 
@@ -287,6 +288,7 @@ Async HTTP client wrapping `https://api.jolpi.ca/ergast/f1/`:
 | `get_circuit_recent_results(circuit_id)` | Last 5 races at circuit |
 | `get_season_races(year)` | Full season race results (all races) |
 | `get_driver_all_results(driver_ref)` | All career results (paginated) |
+| `get_all_drivers()` | Full driver list for search/autocomplete (cached) |
 
 ### `ai_assistant.py` — AI Summarizer
 

@@ -1,6 +1,119 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { compareApi } from '../../services/api';
 import type { DriverComparisonResponse, H2HRaceDetail } from '../../types/api';
+
+interface DriverOption {
+  driver_id: string;
+  code: string;
+  full_name: string;
+  nationality: string;
+  permanent_number: string;
+}
+
+// ── Searchable Driver Selector ──
+
+interface DriverSearchInputProps {
+  label: string;
+  value: string;
+  onChange: (driverId: string) => void;
+  placeholder?: string;
+}
+
+function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearchInputProps) {
+  const [query, setQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<DriverOption[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleInputChange = (val: string) => {
+    setQuery(val);
+    setShowSuggestions(true);
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (val.trim().length < 1) {
+      setSuggestions([]);
+      return;
+    }
+
+    setLoading(true);
+    timerRef.current = setTimeout(async () => {
+      try {
+        const results = await compareApi.searchDrivers(val.trim());
+        setSuggestions(results);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 200); // debounce
+  };
+
+  const selectDriver = (driver: DriverOption) => {
+    setQuery(`${driver.full_name} (${driver.code})`);
+    onChange(driver.driver_id);
+    setShowSuggestions(false);
+  };
+
+  // Pre-fill display if we have a value but no query text (e.g. after reset)
+  useEffect(() => {
+    if (!value && query) setQuery('');
+  }, [value, query]);
+
+  return (
+    <div className="relative flex-1" ref={wrapperRef}>
+      <label className="block text-sm text-gray-400 mb-1">{label}</label>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => handleInputChange(e.target.value)}
+        onFocus={() => query.trim().length >= 1 && setShowSuggestions(true)}
+        placeholder={placeholder}
+        className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+      />
+      {loading && (
+        <div className="absolute right-3 top-9">
+          <div className="animate-spin h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full"></div>
+        </div>
+      )}
+      {showSuggestions && suggestions.length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded shadow-xl max-h-60 overflow-y-auto">
+          {suggestions.map((driver) => (
+            <button
+              key={driver.driver_id}
+              onClick={() => selectDriver(driver)}
+              className="w-full text-left px-3 py-2 hover:bg-gray-600 text-sm flex items-center justify-between transition"
+            >
+              <span className="text-gray-100">{driver.full_name}</span>
+              <span className="text-gray-400 text-xs ml-2">
+                {driver.code && `${driver.code} • `}
+                {driver.nationality}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+      {showSuggestions && suggestions.length === 0 && query.trim().length >= 1 && !loading && (
+        <div className="absolute z-50 w-full mt-1 bg-gray-700 border border-gray-600 rounded shadow-xl p-3 text-sm text-gray-400 text-center">
+          No drivers found
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface StatBarProps {
   label: string;
@@ -115,30 +228,22 @@ export default function CompareTab() {
       <form onSubmit={handleCompare} className="bg-gray-800 rounded-lg p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">Compare Two Drivers</h2>
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <label className="block text-sm text-gray-400 mb-1">Driver A</label>
-            <input
-              type="text"
-              value={driverA}
-              onChange={(e) => setDriverA(e.target.value)}
-              placeholder="e.g. hamilton"
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-          </div>
-          <div className="flex-1">
-            <label className="block text-sm text-gray-400 mb-1">Driver B</label>
-            <input
-              type="text"
-              value={driverB}
-              onChange={(e) => setDriverB(e.target.value)}
-              placeholder="e.g. max_verstappen"
-              className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-            />
-          </div>
+          <DriverSearchInput
+            label="Driver A"
+            value={driverA}
+            onChange={setDriverA}
+            placeholder="Type a driver name..."
+          />
+          <DriverSearchInput
+            label="Driver B"
+            value={driverB}
+            onChange={setDriverB}
+            placeholder="Type a driver name..."
+          />
           <div className="flex items-end">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !driverA || !driverB}
               className="px-6 py-2 bg-red-600 text-white rounded text-sm font-medium hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Comparing...' : 'Compare'}
@@ -147,7 +252,7 @@ export default function CompareTab() {
         </div>
         {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
         <p className="text-gray-500 text-xs mt-2">
-          Use Ergast driver IDs: hamilton, max_verstappen, leclerc, sainz, norris, etc.
+          Start typing to search — matches by name, code (e.g. VER), or driver ID.
         </p>
       </form>
 
