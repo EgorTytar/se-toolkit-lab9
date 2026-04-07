@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { userApi, favoritesApi, remindersApi } from '../services/api';
 import type { FavoriteDriver, Reminder } from '../types/api';
 import { Link, Navigate } from 'react-router-dom';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 type AccountTab = 'profile' | 'favorites' | 'reminders';
 
@@ -17,6 +18,17 @@ export default function AccountPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Push notifications
+  const {
+    isSupported,
+    isSubscribed,
+    loading: pushLoading,
+    error: pushError,
+    subscribe,
+    unsubscribe,
+    checkSubscription,
+  } = usePushNotifications();
+
   useEffect(() => {
     if (user) {
       setDisplayName(user.display_name);
@@ -28,6 +40,12 @@ export default function AccountPage() {
       loadData();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && isSupported && activeTab === 'profile') {
+      checkSubscription();
+    }
+  }, [isAuthenticated, isSupported, activeTab, checkSubscription]);
 
   const loadData = async () => {
     setLoading(true);
@@ -168,6 +186,43 @@ export default function AccountPage() {
             >
               {updating ? 'Updating...' : 'Update Profile'}
             </button>
+          </div>
+
+          {/* Push Notifications Toggle */}
+          <div className="mt-8 pt-6 border-t border-gray-700">
+            <h3 className="text-lg font-bold mb-3">Notifications</h3>
+            {isSupported ? (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Browser Push Notifications</p>
+                  <p className="text-sm text-gray-400">
+                    {isSubscribed
+                      ? 'Enabled — you will receive race reminders'
+                      : 'Click to enable race reminder notifications'}
+                  </p>
+                </div>
+                <button
+                  onClick={isSubscribed ? unsubscribe : subscribe}
+                  disabled={pushLoading}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                    isSubscribed ? 'bg-green-600' : 'bg-gray-600'
+                  } disabled:opacity-50`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                      isSubscribed ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Push notifications are not supported in this browser.
+              </p>
+            )}
+            {pushError && (
+              <p className="text-red-400 text-sm mt-2">{pushError}</p>
+            )}
           </div>
         </div>
       )}

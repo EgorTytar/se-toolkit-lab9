@@ -93,6 +93,14 @@ app.include_router(push_router)
 # Serve static files (React frontend build output)
 app.mount("/assets", StaticFiles(directory="static/dist/assets"), name="assets")
 
+# Serve service worker from root
+from fastapi.responses import FileResponse
+
+@app.get("/sw.js")
+async def service_worker():
+    """Serve the service worker file."""
+    return FileResponse("static/dist/sw.js", media_type="application/javascript")
+
 ergast_client = ErgastClient()
 ai_summarizer = AISummarizer()
 
