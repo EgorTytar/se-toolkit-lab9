@@ -12,6 +12,8 @@ import type {
   ChatSession,
   ChatSessionWithMessages,
   ChatMessage,
+  DriverComparisonResponse,
+  TeammateInfo,
 } from '../types/api';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -172,4 +174,24 @@ export const chatApi = {
     apiFetch<{ message: ChatMessage }>(`${BASE}/api/chat/sessions/${sessionId}/generate`, {
       method: 'POST',
     }),
+};
+
+// Comparison endpoints
+export const compareApi = {
+  searchDrivers: (query: string) =>
+    apiFetch<Array<{
+      driver_id: string;
+      code: string;
+      given_name: string;
+      family_name: string;
+      full_name: string;
+      nationality: string;
+      permanent_number: string;
+    }>>(`${BASE}/api/compare/drivers/search?q=${encodeURIComponent(query)}`),
+  compareDrivers: (driverA: string, driverB: string) =>
+    apiFetch<DriverComparisonResponse>(
+      `${BASE}/api/compare/drivers?a=${encodeURIComponent(driverA)}&b=${encodeURIComponent(driverB)}`,
+    ),
+  getDriverTeammates: (driverId: string) =>
+    apiFetch<TeammateInfo[]>(`${BASE}/api/compare/drivers/${encodeURIComponent(driverId)}/teammates`),
 };

@@ -22,6 +22,7 @@ from endpoints.reminders import router as reminders_router
 from endpoints.favorites import router as favorites_router
 from endpoints.chat import router as chat_router
 from endpoints.retrospective import router as retrospective_router
+from endpoints.compare import router as compare_router
 from services.scheduler import start_scheduler, stop_scheduler
 from services.cache_service import get_cached_response, cache_response, CACHE_TTL_RACE_SUMMARY, CACHE_TTL_RETROSPECTIVE
 
@@ -85,6 +86,7 @@ app.include_router(reminders_router)
 app.include_router(favorites_router)
 app.include_router(chat_router)
 app.include_router(retrospective_router)
+app.include_router(compare_router)
 
 # Serve static files (React frontend build output)
 app.mount("/assets", StaticFiles(directory="static/dist/assets"), name="assets")
