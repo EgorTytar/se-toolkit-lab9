@@ -23,7 +23,8 @@
       "Bash(docker images)",
       "Bash(npm install *)",
       "Bash(docker logs *)",
-      "Bash(docker ps *)"
+      "Bash(docker ps *)",
+      "Bash(time *)"
     ]
   },
   "$version": 3

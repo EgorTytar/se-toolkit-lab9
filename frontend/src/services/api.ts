@@ -14,6 +14,8 @@ import type {
   ChatMessage,
   DriverComparisonResponse,
   TeammateInfo,
+  ConstructorComparisonResponse,
+  ConstructorOption,
 } from '../types/api';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -194,4 +196,12 @@ export const compareApi = {
     ),
   getDriverTeammates: (driverId: string) =>
     apiFetch<TeammateInfo[]>(`${BASE}/api/compare/drivers/${encodeURIComponent(driverId)}/teammates`),
+
+  // Constructor comparison
+  searchConstructors: (query: string) =>
+    apiFetch<ConstructorOption[]>(`${BASE}/api/compare/constructors/search?q=${encodeURIComponent(query)}`),
+  compareConstructors: (constructorA: string, constructorB: string) =>
+    apiFetch<ConstructorComparisonResponse>(
+      `${BASE}/api/compare/constructors?a=${encodeURIComponent(constructorA)}&b=${encodeURIComponent(constructorB)}`,
+    ),
 };

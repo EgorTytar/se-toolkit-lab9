@@ -236,3 +236,78 @@ export interface TeammateInfo {
   }[];
   total_races: number;
 }
+
+// Constructor comparison types
+export interface ConstructorProfile {
+  constructor_id: string;
+  name: string;
+  nationality: string;
+  url: string;
+}
+
+export interface ConstructorCareerStats {
+  races: number;
+  wins: number;
+  podiums: number;
+  poles: number;
+  points: number;
+  championships: number;
+  best_finish: number | null;
+  worst_finish: number | null;
+  dnfs: number;
+  seasons_active: number[];
+  avg_finish: number | null;
+  avg_points: number;
+  avg_grid: number | null;
+  win_pct: number;
+  podium_pct: number;
+  dnf_pct: number;
+}
+
+export interface ConstructorH2HRaceDetail {
+  season: number;
+  round: number;
+  race_name: string;
+  date: string;
+  constructor_a: {
+    position: string;
+    points: number;
+    status: string;
+    driver: string;
+  };
+  constructor_b: {
+    position: string;
+    points: number;
+    status: string;
+    driver: string;
+  };
+  winner: 'a' | 'b' | 'draw';
+}
+
+export interface ConstructorH2H {
+  shared_seasons: number[];
+  shared_races: number;
+  constructor_a_wins: number;
+  constructor_b_wins: number;
+  draws: number;
+  race_details: ConstructorH2HRaceDetail[];
+}
+
+export interface ConstructorComparisonResponse {
+  constructor_a: {
+    info: ConstructorProfile;
+    career: ConstructorCareerStats;
+  };
+  constructor_b: {
+    info: ConstructorProfile;
+    career: ConstructorCareerStats;
+  };
+  head_to_head: ConstructorH2H;
+}
+
+export interface ConstructorOption {
+  constructor_id: string;
+  name: string;
+  nationality: string;
+  url: string;
+}
