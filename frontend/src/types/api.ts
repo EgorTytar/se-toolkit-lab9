@@ -154,3 +154,56 @@ export interface ChatMessage {
 export interface ChatSessionWithMessages extends ChatSession {
   messages: ChatMessage[];
 }
+
+// Comparison types
+export interface DriverCareerStats {
+  races: number;
+  wins: number;
+  podiums: number;
+  poles: number;
+  points: number;
+  championships: number;
+  best_finish: number | null;
+  worst_finish: number | null;
+  dnfs: number;
+  seasons_competed: number[];
+}
+
+export interface H2HRaceDetail {
+  season: number;
+  round: number;
+  race_name: string;
+  date: string;
+  driver_a: {
+    position: string;
+    points: number;
+    status: string;
+  };
+  driver_b: {
+    position: string;
+    points: number;
+    status: string;
+  };
+  winner: 'a' | 'b' | 'draw';
+}
+
+export interface HeadToHead {
+  shared_seasons: number[];
+  shared_races: number;
+  driver_a_wins: number;
+  driver_b_wins: number;
+  draws: number;
+  race_details: H2HRaceDetail[];
+}
+
+export interface DriverComparisonResponse {
+  driver_a: {
+    info: DriverProfile;
+    career: DriverCareerStats;
+  };
+  driver_b: {
+    info: DriverProfile;
+    career: DriverCareerStats;
+  };
+  head_to_head: HeadToHead;
+}

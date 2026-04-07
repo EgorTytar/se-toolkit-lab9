@@ -1,5 +1,6 @@
 """Async client for the Ergast F1 Developer API."""
 
+import asyncio
 import httpx
 
 from config import ERGAST_BASE_URL, ERGAST_TIMEOUT
@@ -11,15 +12,37 @@ class ErgastClient:
     def __init__(self) -> None:
         self.base_url = ERGAST_BASE_URL
         self.timeout = ERGAST_TIMEOUT
+        self._client: httpx.AsyncClient | None = None
 
-    async def _get(self, url: str) -> dict:
-        """Perform an async GET request to the Ergast API."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{self.base_url}/{url}", timeout=self.timeout
-            )
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create a persistent HTTP client (reuses connections)."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=self.timeout)
+        return self._client
+
+    async def _get(self, url: str, retries: int = 3) -> dict:
+        """Perform an async GET request to the Ergast API with retry on 429."""
+        client = await self._get_client()
+        last_response = None
+        for attempt in range(retries):
+            response = await client.get(f"{self.base_url}/{url}")
+            last_response = response
+            if response.status_code == 429:
+                wait = 2 ** (attempt + 1)  # exponential backoff: 2s, 4s, 8s
+                await asyncio.sleep(wait)
+                continue
             response.raise_for_status()
             return response.json()
+        # All retries exhausted
+        assert last_response is not None
+        last_response.raise_for_status()
+        return {}  # unreachable but satisfies type checker
+
+    async def close(self) -> None:
+        """Close the persistent HTTP client if it exists."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            self._client = None
 
     async def get_latest_race(self) -> dict:
         """Fetch data for the most recent race."""
@@ -157,6 +180,59 @@ class ErgastClient:
             "longitude": circuit.get("Location", {}).get("long", ""),
             "url": circuit.get("url", ""),
         }
+
+    async def get_season_races(self, year: int) -> list[dict]:
+        """Fetch all race results for a given season (full results, not just schedule)."""
+        data = await self._get(f"{year}.json")
+        try:
+            races = data["MRData"]["RaceTable"]["Races"]
+        except (KeyError, IndexError):
+            return []
+
+        return races
+
+    async def get_driver_all_results(self, driver_ref: str) -> list[dict]:
+        """Fetch ALL race results for a driver across their entire career.
+
+        Uses pagination since Ergast limits to 30 results per page by default.
+        We use limit=100 and paginate through all results.
+        """
+        all_results = []
+        offset = 0
+        limit = 100
+
+        while True:
+            data = await self._get(
+                f"drivers/{driver_ref}/results.json?limit={limit}&offset={offset}"
+            )
+            try:
+                races = data["MRData"]["RaceTable"]["Races"]
+                total = int(data["MRData"].get("total", 0))
+            except (KeyError, IndexError):
+                break
+
+            for race in races:
+                result_entry = race.get("Results", [{}])[0]
+                if not result_entry:
+                    continue
+                all_results.append({
+                    "season": int(race.get("season", 0)),
+                    "round": int(race.get("round", 0)),
+                    "race_name": race.get("raceName", ""),
+                    "circuit": race.get("Circuit", {}).get("circuitName", ""),
+                    "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
+                    "date": race.get("date", ""),
+                    "position": result_entry.get("position", ""),
+                    "grid": int(result_entry.get("grid", 0)),
+                    "points": float(result_entry.get("points", 0)),
+                    "status": result_entry.get("status", ""),
+                })
+
+            offset += limit
+            if offset >= total:
+                break
+
+        return all_results
 
     async def get_circuit_recent_results(self, circuit_id: str, limit: int = 5) -> list[dict]:
         """Fetch up to `limit` most recent race results at a circuit.

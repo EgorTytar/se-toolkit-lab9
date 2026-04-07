@@ -12,6 +12,7 @@ import type {
   ChatSession,
   ChatSessionWithMessages,
   ChatMessage,
+  DriverComparisonResponse,
 } from '../types/api';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -172,4 +173,12 @@ export const chatApi = {
     apiFetch<{ message: ChatMessage }>(`${BASE}/api/chat/sessions/${sessionId}/generate`, {
       method: 'POST',
     }),
+};
+
+// Comparison endpoints
+export const compareApi = {
+  compareDrivers: (driverA: string, driverB: string) =>
+    apiFetch<DriverComparisonResponse>(
+      `${BASE}/api/compare/drivers?a=${encodeURIComponent(driverA)}&b=${encodeURIComponent(driverB)}`,
+    ),
 };

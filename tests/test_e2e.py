@@ -278,3 +278,33 @@ class TestMultiRace:
         # They may or may not be the same, but both should be valid names
         assert len(champ_23) > 2
         assert len(champ_24) > 2
+
+
+# ── Driver Comparison ──
+
+class TestDriverComparison:
+    """E2E tests for the driver head-to-head comparison endpoint.
+
+    Note: These hit the real Jolpica-F1 API and may be slow due to
+    rate limiting. The unit tests (test_compare.py) cover all logic
+    with mocked data.
+    """
+
+    def test_compare_hamilton_verstappen(self, api, base):
+        """Compare two well-known drivers — should return valid structure."""
+        # Use extended timeout for rate-limited API
+        r = api.get(f"{base}/api/compare/drivers?a=hamilton&b=max_verstappen", timeout=180.0)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["driver_a"]["info"]["full_name"] == "Lewis Hamilton"
+        assert data["driver_b"]["info"]["full_name"] == "Max Verstappen"
+        assert data["driver_a"]["career"]["races"] > 0
+        assert data["driver_b"]["career"]["races"] > 0
+        assert data["driver_a"]["career"]["wins"] > 0
+        assert data["driver_b"]["career"]["wins"] > 0
+        assert data["head_to_head"]["shared_races"] > 0
+
+    def test_compare_driver_not_found(self, api, base):
+        """Non-existent driver returns 404."""
+        r = api.get(f"{base}/api/compare/drivers?a=nonexistent_xyz_123&b=hamilton")
+        assert r.status_code == 404
