@@ -485,6 +485,124 @@ async def get_driver_teammates(driver_id: str) -> list[dict]:
     return result
 
 
+# ── Constructor Info ──
+
+@router.get("/constructors/{constructor_id}")
+async def get_constructor_info(constructor_id: str, year: int = 0) -> dict:
+    """Get constructor info and season results.
+
+    Similar to driver info endpoint.
+    """
+    import datetime
+    current_year = datetime.datetime.now().year
+    target_year = year if year > 0 else current_year
+
+    try:
+        info = await ergast_client.get_constructor_info(constructor_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    if not info:
+        raise HTTPException(status_code=404, detail=f"Constructor '{constructor_id}' not found")
+
+    # Fetch season results for the constructor
+    season_results = []
+    try:
+        all_results = await ergast_client.get_constructor_all_results(constructor_id)
+        season_results = [r for r in all_results if r["season"] == target_year]
+    except Exception:
+        pass
+
+    # Season stats
+    season_stats = {}
+    if season_results:
+        positions = [int(r["position"]) for r in season_results if str(r["position"]).isdigit()]
+        season_stats = {
+            "races": len(season_results),
+            "points": sum(r.get("points", 0) for r in season_results),
+            "best_finish": min(positions) if positions else None,
+            "wins": sum(1 for r in season_results if str(r["position"]) == "1"),
+        }
+
+    return {
+        "constructor": info,
+        "season": target_year,
+        "results": season_results[:30],  # limit to 30
+        "season_stats": season_stats,
+    }
+
+
+@router.get("/constructors/{constructor_id}/ai-summary")
+async def get_constructor_ai_summary(constructor_id: str, year: int = 0) -> dict:
+    """Generate an AI summary of a constructor's season performance."""
+    import datetime
+    from services.ai_assistant import AISummarizer
+
+    current_year = datetime.datetime.now().year
+    target_year = year if year > 0 else current_year
+
+    try:
+        info = await ergast_client.get_constructor_info(constructor_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ergast API error: {e}") from e
+
+    # Fetch season results
+    season_results = []
+    try:
+        all_results = await ergast_client.get_constructor_all_results(constructor_id)
+        season_results = [r for r in all_results if r["season"] == target_year]
+    except Exception:
+        pass
+
+    if not season_results:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No results found for {info['name']} in {target_year}",
+        )
+
+    # Build results text
+    positions = [int(r["position"]) for r in season_results if str(r["position"]).isdigit()]
+    wins = sum(1 for r in season_results if str(r["position"]) == "1")
+    podiums = sum(1 for r in season_results if str(r["position"]).isdigit() and int(r["position"]) <= 3)
+    total_points = sum(r.get("points", 0) for r in season_results)
+
+    results_lines = []
+    for r in season_results[:10]:
+        results_lines.append(
+            f"Round {r['round']}: {r['race_name']} — Driver: {r['driver']}, "
+            f"Position: P{r['position']}, Points: {r['points']}, Grid: P{r['grid']}"
+        )
+    if len(season_results) > 10:
+        results_lines.append(f"...and {len(season_results) - 10} more races")
+
+    context_text = (
+        f"Constructor: {info['name']}\n"
+        f"Season: {target_year}\n"
+        f"Races: {len(season_results)}\n"
+        f"Wins: {wins}\n"
+        f"Podiums: {podiums}\n"
+        f"Total Points: {total_points}\n"
+        f"Best Finish: P{min(positions) if positions else 'N/A'}\n"
+        f"\nRace Results:\n" + "\n".join(results_lines)
+    )
+
+    summarizer = AISummarizer()
+    result = await summarizer.summarize(
+        context_text,
+        user_query=f"Give me a detailed analysis of {info['name']}'s {target_year} F1 season performance based on the data above.",
+    )
+
+    return {
+        "constructor": info["name"],
+        "season": target_year,
+        "ai_summary": result,
+    }
+
+
 # ── Constructor Comparison ──
 
 # In-memory cache for the full constructor list

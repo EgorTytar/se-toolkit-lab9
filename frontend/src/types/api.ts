@@ -37,6 +37,7 @@ export interface StandingEntry {
   driver_name: string;
   nationality: string;
   constructor: string;
+  constructor_id: string;
   points: number;
   wins: number;
 }
@@ -310,4 +311,29 @@ export interface ConstructorOption {
   name: string;
   nationality: string;
   url: string;
+}
+
+export interface ConstructorResult {
+  season: number;
+  round: number;
+  race_name: string;
+  circuit: string;
+  date: string;
+  position: string;
+  grid: number;
+  points: number;
+  status: string;
+  driver: string;
+}
+
+export interface ConstructorResponse {
+  constructor: ConstructorProfile;
+  season: number;
+  results: ConstructorResult[];
+  season_stats: {
+    races: number;
+    points: number;
+    best_finish: number | null;
+    wins: number;
+  };
 }

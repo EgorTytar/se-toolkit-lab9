@@ -137,7 +137,9 @@ export default function RetrospectiveTab() {
               {data.constructors_champion && (
                 <span>
                   {data.is_ongoing ? '🏅 Constructors Standings:' : '🏅 Constructors:'}{' '}
-                  {data.constructors_champion.constructor} — {data.constructors_champion.points} pts
+                  <Link to={`/constructor/${data.constructors_champion.constructor.toLowerCase().replace(/ /g, '_')}`} className="text-red-400 hover:underline">
+                    {data.constructors_champion.constructor}
+                  </Link> — {data.constructors_champion.points} pts
                 </span>
               )}
             </div>

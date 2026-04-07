@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { compareApi } from '../../services/api';
 import type { DriverComparisonResponse, H2HRaceDetail, TeammateInfo, ConstructorComparisonResponse, ConstructorH2HRaceDetail } from '../../types/api';
 
@@ -338,7 +339,9 @@ function ComparisonResult({ data }: { data: DriverComparisonResponse }) {
           {data.driver_a.career.teams.map((team) => (
             <div key={team.constructor_id} className="border-b border-gray-700 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-100">{team.constructor_name}</span>
+                <Link to={`/constructor/${team.constructor_id}`} className="font-medium text-gray-100 hover:text-red-400 hover:underline">
+                  {team.constructor_name}
+                </Link>
                 <span className="text-xs text-gray-500">
                   {team.years[0]}–{team.years[team.years.length - 1]}
                 </span>
@@ -359,7 +362,9 @@ function ComparisonResult({ data }: { data: DriverComparisonResponse }) {
           {data.driver_b.career.teams.map((team) => (
             <div key={team.constructor_id} className="border-b border-gray-700 pb-3 mb-3 last:border-0 last:pb-0 last:mb-0">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-gray-100">{team.constructor_name}</span>
+                <Link to={`/constructor/${team.constructor_id}`} className="font-medium text-gray-100 hover:text-red-400 hover:underline">
+                  {team.constructor_name}
+                </Link>
                 <span className="text-xs text-gray-500">
                   {team.years[0]}–{team.years[team.years.length - 1]}
                 </span>

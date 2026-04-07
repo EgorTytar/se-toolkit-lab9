@@ -107,12 +107,21 @@ export default function StandingsTab() {
                     {entry.position}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
-                    <Link
-                      to={`/driver/${entry.driver_id}`}
-                      className="text-red-400 hover:underline"
-                    >
-                      {entry.driver_name} ({entry.driver_code})
-                    </Link>
+                    {standingType === 'drivers' ? (
+                      <Link
+                        to={`/driver/${entry.driver_id}`}
+                        className="text-red-400 hover:underline"
+                      >
+                        {entry.driver_name} ({entry.driver_code})
+                      </Link>
+                    ) : (
+                      <Link
+                        to={`/constructor/${entry.constructor_id}`}
+                        className="text-red-400 hover:underline"
+                      >
+                        {entry.constructor}
+                      </Link>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
                     {entry.nationality}

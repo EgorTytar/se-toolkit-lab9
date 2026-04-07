@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import DriverPage from './pages/DriverPage';
+import ConstructorPage from './pages/ConstructorPage';
 import CircuitPage from './pages/CircuitPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -16,6 +17,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
             <Route path="driver/:driverId" element={<DriverPage />} />
+            <Route path="constructor/:constructorId" element={<ConstructorPage />} />
             <Route path="circuit/:circuitId" element={<CircuitPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="login" element={<LoginPage />} />

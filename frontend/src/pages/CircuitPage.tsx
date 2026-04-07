@@ -98,7 +98,11 @@ export default function CircuitPage() {
                     >
                       {result.driver_name}
                     </Link>
-                    <span className="text-gray-400">({result.constructor})</span>
+                    <span className="text-gray-400">(</span>
+                    <Link to={`/constructor/${result.constructor.toLowerCase().replace(/ /g, '_')}`} className="text-gray-400 hover:text-red-400">
+                      {result.constructor}
+                    </Link>
+                    <span className="text-gray-400">)</span>
                     <span className="text-gray-500">• {result.points} pts</span>
                   </div>
                 </div>

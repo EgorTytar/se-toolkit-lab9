@@ -16,6 +16,7 @@ import type {
   TeammateInfo,
   ConstructorComparisonResponse,
   ConstructorOption,
+  ConstructorResponse,
 } from '../types/api';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -204,4 +205,14 @@ export const compareApi = {
     apiFetch<ConstructorComparisonResponse>(
       `${BASE}/api/compare/constructors?a=${encodeURIComponent(constructorA)}&b=${encodeURIComponent(constructorB)}`,
     ),
+  getConstructorInfo: (constructorId: string, year?: number) => {
+    const params = year ? `?year=${year}` : '';
+    return apiFetch<ConstructorResponse>(`${BASE}/api/compare/constructors/${encodeURIComponent(constructorId)}${params}`);
+  },
+  getConstructorAiSummary: (constructorId: string, year?: number) => {
+    const params = year ? `?year=${year}` : '';
+    return apiFetch<{ constructor: string; season: number; ai_summary: { summary: string; highlights: string; insights: string; answer: string } }>(
+      `${BASE}/api/compare/constructors/${encodeURIComponent(constructorId)}/ai-summary${params}`
+    );
+  },
 };
