@@ -10,9 +10,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from db.database import get_db
 from db.models import PushSubscription, User
 from dependencies import get_current_user
+from config import VAPID_PUBLIC_KEY
 
 router = APIRouter(prefix="/api/push", tags=["push-notifications"])
 logger = logging.getLogger(__name__)
+
+
+class PushSubscriptionRequest(BaseModel):
+    endpoint: str
+    keys: dict  # {"p256dh": "...", "auth": "..."}
+
+
+@router.get("/vapid-public-key")
+async def get_vapid_public_key():
+    """Return the VAPID public key for browser subscription."""
+    if VAPID_PUBLIC_KEY == "your-vapid-public-key-here":
+        raise HTTPException(status_code=503, detail="VAPID keys not configured")
+    return {"public_key": VAPID_PUBLIC_KEY}
 
 
 class PushSubscriptionRequest(BaseModel):
