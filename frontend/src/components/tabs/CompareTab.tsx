@@ -17,11 +17,12 @@ interface DriverOption {
 interface DriverSearchInputProps {
   label: string;
   value: string;
-  onChange: (driverId: string) => void;
+  onChange: (driverId: string, displayText?: string) => void;
   placeholder?: string;
+  displayValue?: string;
 }
 
-function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearchInputProps) {
+function DriverSearchInput({ label, value, onChange, placeholder, displayValue }: DriverSearchInputProps) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<DriverOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -39,11 +40,14 @@ function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearch
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Update display when parent sets a new value or clears it
   useEffect(() => {
     if (!value) {
       setQuery('');
+    } else if (displayValue) {
+      setQuery(displayValue);
     }
-  }, [value]);
+  }, [value, displayValue]);
 
   const handleInputChange = (val: string) => {
     setQuery(val);
@@ -71,8 +75,9 @@ function DriverSearchInput({ label, value, onChange, placeholder }: DriverSearch
   };
 
   const selectDriver = (driver: DriverOption) => {
-    setQuery(`${driver.full_name} (${driver.code})`);
-    onChange(driver.driver_id);
+    const display = `${driver.full_name} (${driver.code})`;
+    setQuery(display);
+    onChange(driver.driver_id, display);
     setShowSuggestions(false);
   };
 
@@ -524,12 +529,15 @@ export default function CompareTab() {
   // H2H state
   const [driverA, setDriverA] = useState('');
   const [driverB, setDriverB] = useState('');
+  const [driverADisplay, setDriverADisplay] = useState('');
+  const [driverBDisplay, setDriverBDisplay] = useState('');
   const [data, setData] = useState<DriverComparisonResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Teammates state
   const [teammateDriverId, setTeammateDriverId] = useState('');
+  const [teammateDriverDisplay, setTeammateDriverDisplay] = useState('');
   const [teammates, setTeammates] = useState<TeammateInfo[]>([]);
   const [teammatesLoading, setTeammatesLoading] = useState(false);
   const [teammatesError, setTeammatesError] = useState<string | null>(null);
@@ -584,10 +592,18 @@ export default function CompareTab() {
   };
 
   // Compare with a teammate: switch to H2H mode, pre-fill drivers, trigger compare
-  const handleCompareWithTeammate = (teammateId: string) => {
+  const handleCompareWithTeammate = (teammateId: string, teammateName?: string, teammateCode?: string) => {
+    // Construct display strings
+    const teammateDisplay = teammateName && teammateCode ? `${teammateName} (${teammateCode})` : teammateId;
+    // For driver A, use the stored display value or fall back to the ID
+    const mainDriverDisplay = teammateDriverDisplay || teammateDriverId;
+
     // Set both drivers
     setDriverA(teammateDriverId);
     setDriverB(teammateId);
+    // Set display values for the search inputs
+    setDriverADisplay(mainDriverDisplay);
+    setDriverBDisplay(teammateDisplay);
     // Switch to H2H mode
     setMode('h2h');
     // Clear teammate results
@@ -645,14 +661,22 @@ export default function CompareTab() {
               <DriverSearchInput
                 label="Driver A"
                 value={driverA}
-                onChange={setDriverA}
+                onChange={(id, display) => {
+                  setDriverA(id);
+                  if (display) setDriverADisplay(display);
+                }}
                 placeholder="Type a driver name..."
+                displayValue={driverADisplay}
               />
               <DriverSearchInput
                 label="Driver B"
                 value={driverB}
-                onChange={setDriverB}
+                onChange={(id, display) => {
+                  setDriverB(id);
+                  if (display) setDriverBDisplay(display);
+                }}
                 placeholder="Type a driver name..."
+                displayValue={driverBDisplay}
               />
               <div className="flex items-end">
                 <button
@@ -690,8 +714,12 @@ export default function CompareTab() {
               <DriverSearchInput
                 label="Driver"
                 value={teammateDriverId}
-                onChange={setTeammateDriverId}
+                onChange={(id, display) => {
+                  setTeammateDriverId(id);
+                  setTeammateDriverDisplay(display || id);
+                }}
                 placeholder="Type a driver name..."
+                displayValue={teammateDriverDisplay}
               />
               <div className="flex items-end">
                 <button
@@ -746,7 +774,7 @@ export default function CompareTab() {
                           <td className="py-2 px-3 text-center">{tm.total_races}</td>
                           <td className="py-2 px-3 text-center">
                             <button
-                              onClick={() => handleCompareWithTeammate(tm.driver_id)}
+                              onClick={() => handleCompareWithTeammate(tm.driver_id, tm.full_name, tm.code)}
                               className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition"
                             >
                               Compare
