@@ -227,6 +227,8 @@ export interface DriverComparisonResponse {
 
 export interface TeammateInfo {
   driver_id: string;
+  code: string;
+  full_name: string;
   seasons: number[];
   constructors: {
     constructor_id: string;

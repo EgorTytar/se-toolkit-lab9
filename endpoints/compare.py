@@ -459,11 +459,19 @@ async def get_driver_teammates(driver_id: str) -> list[dict]:
             if offset >= total or len(races) < limit:
                 break
 
-    # Build final result
+    # Build final result with driver info
     result = []
     for did, info in teammate_map.items():
+        # Fetch basic driver info
+        try:
+            driver_info = await ergast_client.get_driver_info(did)
+        except Exception:
+            driver_info = None
+
         result.append({
             "driver_id": did,
+            "code": driver_info.get("code", "") if driver_info else "",
+            "full_name": driver_info.get("full_name", did) if driver_info else did,
             "seasons": sorted(info["seasons"]),
             "constructors": [
                 {"constructor_id": cid, "constructor_name": name}

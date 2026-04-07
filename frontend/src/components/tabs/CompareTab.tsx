@@ -583,6 +583,33 @@ export default function CompareTab() {
     }
   };
 
+  // Compare with a teammate: switch to H2H mode, pre-fill drivers, trigger compare
+  const handleCompareWithTeammate = (teammateId: string) => {
+    // Set both drivers
+    setDriverA(teammateDriverId);
+    setDriverB(teammateId);
+    // Switch to H2H mode
+    setMode('h2h');
+    // Clear teammate results
+    setTeammates([]);
+    // Trigger the comparison
+    setTimeout(async () => {
+      setLoading(true);
+      setError(null);
+      setData(null);
+      try {
+        const result = await compareApi.compareDrivers(teammateDriverId.trim(), teammateId.trim());
+        setData(result);
+      } catch (err: unknown) {
+        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+          || 'Failed to compare drivers.';
+        setError(detail);
+      } finally {
+        setLoading(false);
+      }
+    }, 0);
+  };
+
   return (
     <div>
       {/* Mode Selector */}
@@ -695,10 +722,11 @@ export default function CompareTab() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-700 text-gray-400">
-                      <th className="py-2 px-3 text-left">Driver ID</th>
+                      <th className="py-2 px-3 text-left">Driver</th>
                       <th className="py-2 px-3 text-left">Seasons</th>
                       <th className="py-2 px-3 text-left">Constructor{teammates.some(t => t.constructors.length > 1) ? 's' : ''}</th>
                       <th className="py-2 px-3 text-center">Races</th>
+                      <th className="py-2 px-3 text-center"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -709,10 +737,21 @@ export default function CompareTab() {
                       const cons = tm.constructors.map(c => c.constructor_name).join(', ');
                       return (
                         <tr key={tm.driver_id} className="border-b border-gray-700 hover:bg-gray-750">
-                          <td className="py-2 px-3 font-medium text-red-400">{tm.driver_id}</td>
+                          <td className="py-2 px-3">
+                            <span className="font-medium text-red-400">{tm.full_name}</span>
+                            {tm.code && <span className="text-gray-500 text-xs ml-2">({tm.code})</span>}
+                          </td>
                           <td className="py-2 px-3">{yrs}</td>
                           <td className="py-2 px-3 text-gray-300">{cons}</td>
                           <td className="py-2 px-3 text-center">{tm.total_races}</td>
+                          <td className="py-2 px-3 text-center">
+                            <button
+                              onClick={() => handleCompareWithTeammate(tm.driver_id)}
+                              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition"
+                            >
+                              Compare
+                            </button>
+                          </td>
                         </tr>
                       );
                     })}
