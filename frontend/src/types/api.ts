@@ -178,6 +178,12 @@ export interface DriverCareerStats {
   dnfs: number;
   seasons_competed: number[];
   teams: ConstructorTeam[];
+  avg_finish: number | null;
+  avg_points: number;
+  avg_grid: number | null;
+  win_pct: number;
+  podium_pct: number;
+  dnf_pct: number;
 }
 
 export interface H2HRaceDetail {

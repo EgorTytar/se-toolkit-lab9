@@ -394,6 +394,61 @@ export default function CompareTab() {
             </div>
           </div>
 
+          {/* Average Stats */}
+          <div className="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4">Averages</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+              {/* Avg Finish */}
+              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                <p className="text-xs text-gray-400 mb-1">Avg Finish</p>
+                <p className="text-xl font-bold">
+                  {data.driver_a.career.avg_finish ?? '—'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {data.driver_b.career.avg_finish ?? '—'}
+                </p>
+              </div>
+              {/* Avg Points/Race */}
+              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                <p className="text-xs text-gray-400 mb-1">Pts/Race</p>
+                <p className="text-xl font-bold">{data.driver_a.career.avg_points}</p>
+                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.avg_points}</p>
+              </div>
+              {/* Avg Grid */}
+              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                <p className="text-xs text-gray-400 mb-1">Avg Grid</p>
+                <p className="text-xl font-bold">
+                  {data.driver_a.career.avg_grid ?? '—'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {data.driver_b.career.avg_grid ?? '—'}
+                </p>
+              </div>
+              {/* Win Rate */}
+              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                <p className="text-xs text-gray-400 mb-1">Win Rate</p>
+                <p className="text-xl font-bold text-green-400">{data.driver_a.career.win_pct}%</p>
+                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.win_pct}%</p>
+              </div>
+              {/* Podium Rate */}
+              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                <p className="text-xs text-gray-400 mb-1">Podium Rate</p>
+                <p className="text-xl font-bold">{data.driver_a.career.podium_pct}%</p>
+                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.podium_pct}%</p>
+              </div>
+              {/* DNF Rate */}
+              <div className="bg-gray-700 rounded-lg p-4 text-center">
+                <p className="text-xs text-gray-400 mb-1">DNF Rate</p>
+                <p className="text-xl font-bold text-red-400">{data.driver_a.career.dnf_pct}%</p>
+                <p className="text-xs text-gray-500 mt-1">{data.driver_b.career.dnf_pct}%</p>
+              </div>
+            </div>
+            <div className="flex justify-between mt-2 text-xs text-gray-500">
+              <span>← {data.driver_a.info.given_name}</span>
+              <span>{data.driver_b.info.given_name} →</span>
+            </div>
+          </div>
+
           {/* Head-to-Head Summary */}
           <div className="bg-gray-800 rounded-lg p-6 mb-6">
             <h3 className="text-lg font-semibold mb-4">

@@ -131,6 +131,11 @@ def _compute_career_stats(results: list[dict]) -> dict:
     dnfs = 0
     seasons_competed: set[int] = set()
 
+    finish_pos_sum = 0
+    classified_count = 0
+    grid_sum = 0
+    grid_count = 0
+
     for r in results:
         pos_str = str(r.get("position", ""))
         grid = r.get("grid", 0)
@@ -143,11 +148,12 @@ def _compute_career_stats(results: list[dict]) -> dict:
 
         if pos_str.isdigit():
             pos = int(pos_str)
+            classified_count += 1
+            finish_pos_sum += pos
             if best_finish is None or pos < best_finish:
                 best_finish = pos
             if worst_finish is None or pos > worst_finish:
                 worst_finish = pos
-
             if pos == 1:
                 total_wins += 1
             if pos <= 3:
@@ -156,8 +162,19 @@ def _compute_career_stats(results: list[dict]) -> dict:
         if status and status != "Finished" and not pos_str.isdigit():
             dnfs += 1
 
-        if isinstance(grid, int) and grid == 1:
-            total_poles += 1
+        if isinstance(grid, int) and grid > 0:
+            grid_sum += grid
+            grid_count += 1
+            if grid == 1:
+                total_poles += 1
+
+    # Derived averages
+    avg_finish = round(finish_pos_sum / classified_count, 2) if classified_count > 0 else None
+    avg_points = round(total_points / total_races, 2) if total_races > 0 else 0
+    avg_grid = round(grid_sum / grid_count, 2) if grid_count > 0 else None
+    win_pct = round((total_wins / total_races) * 100, 1) if total_races > 0 else 0
+    podium_pct = round((total_podiums / total_races) * 100, 1) if total_races > 0 else 0
+    dnf_pct = round((dnfs / total_races) * 100, 1) if total_races > 0 else 0
 
     return {
         "races": total_races,
@@ -170,6 +187,12 @@ def _compute_career_stats(results: list[dict]) -> dict:
         "worst_finish": worst_finish,
         "dnfs": dnfs,
         "seasons_competed": sorted(seasons_competed),
+        "avg_finish": avg_finish,
+        "avg_points": avg_points,
+        "avg_grid": avg_grid,
+        "win_pct": win_pct,
+        "podium_pct": podium_pct,
+        "dnf_pct": dnf_pct,
     }
 
 

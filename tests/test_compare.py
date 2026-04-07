@@ -33,16 +33,20 @@ SAMPLE_DRIVER_INFO_VER = {
 # Sample season results (simplified)
 SAMPLE_HAM_2024 = [
     {"season": 2024, "round": 1, "race_name": "Bahrain GP", "date": "2024-03-02",
-     "position": "7", "grid": 7, "points": 6.0, "status": "Finished"},
+     "position": "7", "grid": 7, "points": 6.0, "status": "Finished",
+     "constructor": "Mercedes", "constructor_id": "mercedes"},
     {"season": 2024, "round": 2, "race_name": "Saudi Arabian GP", "date": "2024-03-09",
-     "position": "9", "grid": 8, "points": 2.0, "status": "Finished"},
+     "position": "9", "grid": 8, "points": 2.0, "status": "Finished",
+     "constructor": "Mercedes", "constructor_id": "mercedes"},
 ]
 
 SAMPLE_VER_2024 = [
     {"season": 2024, "round": 1, "race_name": "Bahrain GP", "date": "2024-03-02",
-     "position": "1", "grid": 1, "points": 25.0, "status": "Finished"},
+     "position": "1", "grid": 1, "points": 25.0, "status": "Finished",
+     "constructor": "Red Bull", "constructor_id": "red_bull"},
     {"season": 2024, "round": 2, "race_name": "Saudi Arabian GP", "date": "2024-03-09",
-     "position": "1", "grid": 1, "points": 26.0, "status": "Finished"},
+     "position": "1", "grid": 1, "points": 26.0, "status": "Finished",
+     "constructor": "Red Bull", "constructor_id": "red_bull"},
 ]
 
 SAMPLE_STANDINGS_2024 = [
@@ -106,7 +110,9 @@ class TestCompareDriversUnit:
         r = compare_test_app.get("/api/compare/drivers?a=hamilton&b=max_verstappen")
         data = r.json()
         for key in ["races", "wins", "podiums", "poles", "points", "championships",
-                     "best_finish", "worst_finish", "dnfs", "seasons_competed"]:
+                     "best_finish", "worst_finish", "dnfs", "seasons_competed",
+                     "avg_finish", "avg_points", "avg_grid", "win_pct", "podium_pct",
+                     "dnf_pct", "teams"]:
             assert key in data["driver_a"]["career"], f"Missing field: {key}"
             assert key in data["driver_b"]["career"], f"Missing field: {key}"
 
@@ -146,6 +152,37 @@ class TestCompareDriversUnit:
         assert data["driver_b"]["career"]["podiums"] == 2
         assert data["driver_b"]["career"]["poles"] == 2
         assert data["driver_b"]["career"]["points"] == 51.0
+
+    def test_compare_average_stats(self, compare_test_app, mock_ergast):
+        """Average stats are computed correctly from sample data."""
+        r = compare_test_app.get("/api/compare/drivers?a=hamilton&b=max_verstappen")
+        data = r.json()
+        # Hamilton: avg_finish = (7+9)/2 = 8.0, win_pct = 0%, dnf_pct = 0%
+        assert data["driver_a"]["career"]["avg_finish"] == 8.0
+        assert data["driver_a"]["career"]["win_pct"] == 0.0
+        assert data["driver_a"]["career"]["podium_pct"] == 0.0
+        assert data["driver_a"]["career"]["dnf_pct"] == 0.0
+        assert data["driver_a"]["career"]["avg_grid"] == 7.5  # (7+8)/2
+        assert data["driver_a"]["career"]["avg_points"] == 4.0  # 8/2
+
+        # Verstappen: avg_finish = 1.0, win_pct = 100%
+        assert data["driver_b"]["career"]["avg_finish"] == 1.0
+        assert data["driver_b"]["career"]["win_pct"] == 100.0
+        assert data["driver_b"]["career"]["podium_pct"] == 100.0
+        assert data["driver_b"]["career"]["avg_grid"] == 1.0
+        assert data["driver_b"]["career"]["avg_points"] == 25.5  # 51/2
+
+    def test_compare_constructor_history(self, compare_test_app, mock_ergast):
+        """Constructor history is computed correctly."""
+        r = compare_test_app.get("/api/compare/drivers?a=hamilton&b=max_verstappen")
+        data = r.json()
+        assert len(data["driver_a"]["career"]["teams"]) == 1  # only Mercedes
+        assert data["driver_a"]["career"]["teams"][0]["constructor_id"] == "mercedes"
+        assert data["driver_a"]["career"]["teams"][0]["races"] == 2
+        assert data["driver_a"]["career"]["teams"][0]["years"] == [2024]
+
+        assert len(data["driver_b"]["career"]["teams"]) == 1  # only Red Bull
+        assert data["driver_b"]["career"]["teams"][0]["constructor_id"] == "red_bull"
 
     def test_compare_h2h_verstappen_beats_hamilton(self, compare_test_app, mock_ergast):
         """H2H correctly shows Verstappen winning both races against Hamilton."""
