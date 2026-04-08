@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { predictionsApi } from '../../services/api';
 import type {
   PredictionResponse,
-  DriverPredictionChampion,
-  ConstructorPredictionChampion,
   DriverFormAnalysis,
   ConstructorFormAnalysis,
 } from '../../types/api';
@@ -147,7 +145,7 @@ export default function PredictionsTab() {
 
               <div className="flex items-baseline gap-4 mb-2">
                 <h2 className="text-2xl font-bold text-gray-100">
-                  {'name' in champion ? champion.name : champion.name}
+                  {champion.name}
                 </h2>
                 <span className="text-lg font-semibold text-yellow-400">{confidencePct}% confidence</span>
               </div>
