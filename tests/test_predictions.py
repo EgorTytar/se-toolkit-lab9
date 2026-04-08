@@ -60,7 +60,7 @@ def setup_prediction_mocks(mock_ergast_client, mock_ai_summarizer):
 
 @pytest.fixture
 def mock_prediction_service(mock_ergast_client, mock_ai_summarizer):
-    """Patch PredictionService to use mocked clients."""
+    """Patch PredictionService and cache to use mocked clients."""
     # Override standings to return data for current year
     mock_ergast_client.get_driver_standings = AsyncMock(return_value=list(SAMPLE_DRIVER_STANDINGS))
     mock_ergast_client.get_constructor_standings = AsyncMock(return_value=list(SAMPLE_CONSTRUCTOR_STANDINGS))
@@ -74,8 +74,13 @@ def mock_prediction_service(mock_ergast_client, mock_ai_summarizer):
     mock_ai_summarizer.is_available = True
     mock_ai_summarizer.chat_response = AsyncMock(return_value=SAMPLE_AI_PREDICTION_RESPONSE)
 
+    # Mock cache to always return None (no cache hits in tests)
+    mock_cache = AsyncMock(return_value=None)
+
     with patch('services.prediction_service.ErgastClient', return_value=mock_ergast_client), \
-         patch('services.prediction_service.AISummarizer', return_value=mock_ai_summarizer):
+         patch('services.prediction_service.AISummarizer', return_value=mock_ai_summarizer), \
+         patch('endpoints.predictions.get_cached_response', mock_cache), \
+         patch('endpoints.predictions.cache_response', AsyncMock()):
         yield
 
 
