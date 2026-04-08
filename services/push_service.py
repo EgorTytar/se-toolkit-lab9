@@ -29,8 +29,6 @@ async def send_push_notification(
     notification = json.dumps({
         "title": title,
         "body": body,
-        "icon": "/icon-192.png",
-        "badge": "/badge-72.png",
     })
 
     subscription_info = {
@@ -40,6 +38,9 @@ async def send_push_notification(
             "auth": auth,
         },
     }
+
+    logger.info(f"Sending push notification to {endpoint[:50]}...")
+    logger.info(f"Notification payload: {notification}")
 
     try:
         response = webpush(
@@ -51,12 +52,13 @@ async def send_push_notification(
         logger.info(f"Push notification sent: {response.status_code}")
         return True
     except WebPushException as e:
+        logger.error(f"Push notification WebPushException: {e}")
+        if e.response:
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response body: {e.response.text}")
         if e.response and e.response.status_code in (404, 410):
-            # Subscription expired — caller should remove it from DB
-            logger.info(f"Push subscription expired, should be removed: {e}")
-        else:
-            logger.error(f"Push notification failed: {e}")
+            logger.info("Push subscription expired, should be removed")
         return False
     except Exception as e:
-        logger.error(f"Unexpected error sending push notification: {e}")
+        logger.error(f"Unexpected error sending push notification: {type(e).__name__}: {e}")
         return False

@@ -1,40 +1,54 @@
 /* eslint-disable no-restricted-globals */
-self.addEventListener('push', function (event) {
-  if (!event.data) return;
 
-  let data;
-  try {
-    data = event.data.json();
-  } catch {
-    data = { title: 'F1 Assistant', body: event.data.text() };
+self.addEventListener('install', function(event) {
+  console.log('[SW] Service worker installed');
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', function(event) {
+  console.log('[SW] Service worker activated');
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('push', function (event) {
+  console.log('[SW] Push event received!');
+  
+  if (!event.data) {
+    console.log('[SW] No push data');
+    return;
   }
 
-  const title = data.title || 'F1 Assistant';
+  let title = 'F1 Assistant';
+  let body = 'Test notification';
+
+  try {
+    const data = event.data.json();
+    console.log('[SW] Push data:', data);
+    title = data.title || 'F1 Assistant';
+    body = data.body || '';
+  } catch (e) {
+    console.log('[SW] Parse error:', e);
+    body = event.data.text() || body;
+  }
+
   const options = {
-    body: data.body || '',
-    icon: data.icon || '/icon-192.png',
-    badge: data.badge || '/badge-72.png',
-    tag: 'f1-reminder',
+    body: body,
+    tag: 'f1-test',
     renotify: true,
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  console.log('[SW] Showing notification:', title, body);
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+      .then(() => console.log('[SW] Notification shown'))
+      .catch(err => console.error('[SW] Notification error:', err))
+  );
 });
 
 self.addEventListener('notificationclick', function (event) {
+  console.log('[SW] Notification clicked');
   event.notification.close();
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-      // Focus existing tab if open
-      for (const client of clientList) {
-        if (client.url.includes('/') && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      // Open new tab
-      if (self.clients.openWindow) {
-        return self.clients.openWindow('/');
-      }
-    })
+    self.clients.openWindow('/')
   );
 });

@@ -233,4 +233,8 @@ export const pushApi = {
     }),
   getSubscriptions: () =>
     apiFetch<{ subscriptions: { id: number; endpoint: string; created_at: string }[] }>(`${BASE}/api/push/subscriptions`),
+  sendTestNotification: () =>
+    apiFetch<{ status: string; count: number }>(`${BASE}/api/push/test`, {
+      method: 'POST',
+    }),
 };

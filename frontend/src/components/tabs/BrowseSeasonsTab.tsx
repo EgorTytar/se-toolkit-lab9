@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { raceApi } from '../../services/api';
-import type { RaceScheduleItem, LatestRaceResponse } from '../../types/api';
+import { useState, useEffect } from 'react';
+import { raceApi, remindersApi } from '../../services/api';
+import type { RaceScheduleItem, LatestRaceResponse, Reminder } from '../../types/api';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -36,6 +36,23 @@ export default function BrowseSeasonsTab() {
   const [fetchedAi, setFetchedAi] = useState(false);
   const [basicResults, setBasicResults] = useState<BasicRaceResults | null>(null);
   const [loadingBasic, setLoadingBasic] = useState(false);
+  const [userReminders, setUserReminders] = useState<Reminder[]>([]);
+
+  // Fetch user reminders when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      remindersApi.getReminders().then(setUserReminders).catch(() => setUserReminders([]));
+    }
+  }, [isAuthenticated]);
+
+  // Listen for reminder changes from other tabs
+  useEffect(() => {
+    const handler = () => {
+      remindersApi.getReminders().then(setUserReminders).catch(() => setUserReminders([]));
+    };
+    window.addEventListener('reminders-changed', handler);
+    return () => window.removeEventListener('reminders-changed', handler);
+  }, []);
 
   const fetchSeason = async () => {
     setLoading(true);
@@ -187,7 +204,21 @@ export default function BrowseSeasonsTab() {
                       {/* Reminder button for future races */}
                       {isRaceFuture && isAuthenticated && (
                         <div className="mb-4">
-                          <AddReminderButton race={race} />
+                          <AddReminderButton
+                            race={race}
+                            existingReminder={userReminders.find(
+                              (r) => r.race_round === race.round && r.race_year === year
+                            )}
+                            onToggle={(reminder) => {
+                              if (reminder) {
+                                // Was added, refresh list
+                                setUserReminders((prev) => [...prev, reminder]);
+                              } else {
+                                // Was removed, refresh list
+                                remindersApi.getReminders().then(setUserReminders).catch(() => setUserReminders([]));
+                              }
+                            }}
+                          />
                         </div>
                       )}
                       {isRaceFuture && !isAuthenticated && (
@@ -261,48 +292,66 @@ export default function BrowseSeasonsTab() {
   );
 }
 
-function AddReminderButton({ race }: { race: RaceScheduleItem }) {
+function AddReminderButton({
+  race,
+  existingReminder,
+  onToggle,
+}: {
+  race: RaceScheduleItem;
+  existingReminder?: Reminder;
+  onToggle: (reminder: Reminder | null) => void;
+}) {
   const [loading, setLoading] = useState(false);
-  const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const addReminder = async () => {
+  const hasReminder = !!existingReminder;
+
+  const toggleReminder = async () => {
     setLoading(true);
     setError(null);
     try {
-      await fetch(`${window.location.origin}/api/reminders/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
+      if (hasReminder && existingReminder) {
+        // Delete existing reminder
+        await remindersApi.deleteReminder(existingReminder.id);
+        onToggle(null);
+        window.dispatchEvent(new Event('reminders-changed'));
+      } else {
+        // Add new reminder
+        const response = await remindersApi.addReminder({
           race_round: race.round,
           race_year: new Date().getFullYear(),
           notify_before_hours: 24,
           method: 'email',
-        }),
-      });
-      setAdded(true);
+        });
+        onToggle(response);
+        window.dispatchEvent(new Event('reminders-changed'));
+      }
     } catch {
-      setError('Failed to add reminder');
+      setError('Failed to update reminder');
     } finally {
       setLoading(false);
     }
   };
 
-  if (added) {
+  if (hasReminder) {
     return (
-      <span className="px-3 py-1 text-sm bg-green-900 text-green-300 rounded flex items-center gap-1">
-        ✓ Reminder Set
-      </span>
+      <div>
+        <button
+          onClick={toggleReminder}
+          disabled={loading}
+          className="px-3 py-1 text-sm bg-green-900 text-green-300 rounded flex items-center gap-1 hover:bg-green-800 transition disabled:opacity-50"
+        >
+          {loading ? 'Removing...' : '✓ Reminder Set (click to remove)'}
+        </button>
+        {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+      </div>
     );
   }
 
   return (
     <div>
       <button
-        onClick={addReminder}
+        onClick={toggleReminder}
         disabled={loading}
         className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:bg-orange-800 text-white rounded-lg transition text-sm"
       >

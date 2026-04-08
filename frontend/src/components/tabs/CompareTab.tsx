@@ -143,6 +143,7 @@ interface StatBarProps {
 function StatBar({ label, valueA, valueB, maxVal, higherIsBetter = true }: StatBarProps) {
   const numA = typeof valueA === 'number' ? valueA : 0;
   const numB = typeof valueB === 'number' ? valueB : 0;
+
   const pctA = maxVal > 0 ? (numA / maxVal) * 100 : 0;
   const pctB = maxVal > 0 ? (numB / maxVal) * 100 : 0;
 
@@ -170,6 +171,27 @@ function StatBar({ label, valueA, valueB, maxVal, higherIsBetter = true }: StatB
           className={`transition-all ${isDraw ? 'bg-gray-500' : bWins ? 'bg-green-500' : 'bg-gray-600'}`}
           style={{ width: `${pctB}%` }}
         />
+      </div>
+    </div>
+  );
+}
+
+function StatLabel({ label, valueA, valueB, higherIsBetter = true }: { label: string; valueA: number | string; valueB: number | string; higherIsBetter?: boolean }) {
+  const numA = typeof valueA === 'number' ? valueA : 0;
+  const numB = typeof valueB === 'number' ? valueB : 0;
+  const aWins = higherIsBetter ? numA > numB : numA < numB;
+  const bWins = higherIsBetter ? numB > numA : numB < numA;
+
+  return (
+    <div className="mb-3">
+      <div className="flex justify-between text-sm mb-1">
+        <span className={aWins ? 'text-green-400 font-semibold' : 'text-gray-300'}>
+          {valueA}
+        </span>
+        <span className="text-gray-400 font-medium">{label}</span>
+        <span className={bWins ? 'text-green-400 font-semibold' : 'text-gray-300'}>
+          {valueB}
+        </span>
       </div>
     </div>
   );
@@ -320,11 +342,10 @@ function ComparisonResult({ data }: { data: DriverComparisonResponse }) {
           maxVal={Math.max(data.driver_a.career.championships, data.driver_b.career.championships)}
         />
         {data.driver_a.career.best_finish && data.driver_b.career.best_finish && (
-          <StatBar
+          <StatLabel
             label="Best Finish"
-            valueA={data.driver_a.career.best_finish}
-            valueB={data.driver_b.career.best_finish}
-            maxVal={20}
+            valueA={`P${data.driver_a.career.best_finish}`}
+            valueB={`P${data.driver_b.career.best_finish}`}
             higherIsBetter={false}
           />
         )}
