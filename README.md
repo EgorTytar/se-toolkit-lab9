@@ -84,7 +84,6 @@ Click **Account → Register** to unlock AI-powered features:
 ### 4. Run Tests
 
 ```bash
-# All 64 unit tests
 docker exec lab9-f1-assistant-1 python -m pytest tests/ -v --ignore=tests/test_e2e.py
 ```
 

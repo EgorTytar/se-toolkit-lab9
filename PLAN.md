@@ -176,7 +176,7 @@ https://api.jolpi.ca/ergast/f1/{year}.json
 | 5. API Endpoints | 10 endpoints across `main.py` |
 | 6. Demo Script | `demo.py` — CLI race summary |
 | 7. Docker | `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example` |
-| 8. Testing | 58 tests (30 unit + 28 e2e), all passing |
+| 8. Testing | Comprehensive test suite, all passing |
 
 ### ✅ Success Criteria — All Met
 
@@ -203,7 +203,7 @@ https://api.jolpi.ca/ergast/f1/{year}.json
 | **Future Race Preview** | Races that haven't happened show schedule info + AI-generated preview |
 | **Dynamic Year Validation** | Uses `datetime.now().year` — no hardcoded 2030 limit |
 | **Hash-Based Routing** | `#/driver/{id}` is bookmarkable |
-| **Full Test Suite** | 30 unit tests + 28 e2e tests against real running server |
+| **Full Test Suite** | Unit tests + e2e tests against running server |
 
 ### 📁 Final Project Structure
 
@@ -319,7 +319,7 @@ The Dockerfile now uses a **multi-stage build**:
 
 ✅ All V1 features (race summaries, standings, driver/circuit pages)  
 ✅ All V2 features (auth, favorites, reminders, account management)  
-✅ All 58 tests pass (30 unit + 28 e2e)  
+✅ All tests pass  
 ✅ SPA routing with proper 404 for unknown API routes  
 ✅ Hash-based URLs replaced with proper routes (`/driver/{id}`, `/circuit/{id}`, `/account`)
 
@@ -337,13 +337,11 @@ Version 1 shipped with more features than originally planned. Version 2 focuses 
 | **Race Reminders** | Email/push notifications before upcoming races, personalized per user's favorite drivers | Critical |
 | **Database (PostgreSQL)** | Persistent storage for users, favorites, reminders, and cached race data | Critical |
 | **Season Retrospective** | AI-generated summary of an entire season's storylines, key moments, and championship narrative | High |
-| **Upcoming Race Preview** | Detailed AI preview with circuit info, recent form, historical results, and storylines to watch | High |
 | **Free-Form Q&A** | Ask any question about F1 — "Who has the most wins at Monaco?" "How did Hamilton do in 2021?" | High |
 | **Driver Head-to-Head** | Compare two drivers side-by-side: wins, podiums, points, head-to-head qualifying/race record | Medium |
 | **Team Comparison** | Constructor head-to-head with historical data and season-over-season trends | Medium |
 | **Circuit Pages** | Track information, lap records, most wins, recent results, layout diagram | Medium |
 | **Championship Prediction** | AI-powered championship outcome prediction based on current form and remaining races | Low |
-| **Live Race Weekend** | Real-time session results (practice, qualifying, race) during race weekends | Low |
 
 ### Architecture Changes
 
@@ -358,18 +356,18 @@ Version 2 Architecture
 │   ├── profiles.py            # User profiles, favorites, preferences
 │   ├── reminders.py           # Scheduled notifications, email/push
 │   ├── retrospective.py       # Full season AI retrospective
-│   ├── preview.py             # Upcoming race preview generator
 │   ├── qa_engine.py           # Free-form Q&A with context
 │   ├── comparison.py          # Driver/team head-to-head
+│   ├── prediction.py          # Championship prediction engine
 │   └── circuit_data.py        # Circuit information & stats
 ├── endpoints/
 │   ├── auth.py                # POST /api/auth/register, /api/auth/login
 │   ├── users.py               # GET/PUT /api/users/me, /api/users/me/favorites
 │   ├── reminders.py           # GET/POST /api/reminders
 │   ├── retrospective.py       # GET /api/seasons/{year}/retrospective
-│   ├── preview.py             # GET /api/races/next/preview
 │   ├── qa.py                  # POST /api/ask
-│   └── compare.py             # GET /api/compare/drivers?a=x&b=y
+│   ├── compare.py             # GET /api/compare/drivers?a=x&b=y
+│   └── predictions.py         # GET /api/predictions/*
 └── web_ui/
     ├── index.html             # Main dashboard (existing)
     ├── auth.html              # Login/Register pages
@@ -437,7 +435,6 @@ race_cache (
 7. **Driver Head-to-Head** — ✅ DONE: career stats + race-by-race H2H record
 8. **Team Comparison** — ✅ DONE: constructor H2H with historical data
 9. **Championship Prediction** — ✅ DONE: AI-powered predictions with form analysis
-10. **Live Race Weekend** — ✅ DONE: real-time session results during race weekends
 
 ---
 
@@ -472,13 +469,14 @@ Option B — Docker (recommended):
 
 Demo flow:
 1. Latest Race tab → see podium cards + race results
-2. Click 🤖 Get AI Summary → generates detailed analysis
+2. Click 🤖 Get AI Summary → generates detailed analysis (requires login)
 3. Browse Seasons → enter 2024 → click any race → inline AI summary
 4. Standings → 2024 → Drivers table → click a driver name → driver page
 5. Reminders tab → see upcoming races → add reminder
-6. 🤖 AI Assistant tab → ask any F1 question → get verified answer
-7. Show error handling → enter year 1940 or 2099 → friendly message
-8. Account tab → profile, favorites, reminders management
+6. 🔮 Predictions → click Drivers/Constructors → AI championship prediction with form analysis
+7. 🤖 AI Assistant tab → ask any F1 question → get verified answer
+8. Show error handling → enter year 1940 or 2099 → friendly message
+9. Account tab → profile, favorites, reminders management
 ```
 
 ---
@@ -797,7 +795,7 @@ All planned features implemented, tested, and documented. No pending development
 | Reminder Editing | ✅ |
 | AI Response Caching | ✅ |
 | Docker Deployment | ✅ |
-| Test Suite (64 tests) | ✅ |
+| Test Suite | ✅ |
 | Documentation | ✅ |
 
 ### Remaining Features

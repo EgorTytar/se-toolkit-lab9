@@ -44,7 +44,7 @@ F1 Race Assistant is a full-stack web application that provides Formula 1 fans w
 - **🔮 Championship Predictions** — AI-powered predictions with form analysis, confidence levels, and contender odds
 
 **Version:** V2 (Full F1 Assistant)
-**Tests:** 64 passing (9 prediction + 38 unit + 7 retrospective + 10 other)
+**Tests:** All unit tests passing (see Testing section for details)
 
 ---
 
@@ -239,9 +239,7 @@ lifespan(app):
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
 | GET | `/health` | Health check (db_healthy, ai_available) | ❌ |
-| GET | `/api/races/latest` | AI summary of latest race | ❌ |
 | GET | `/api/races/latest/results` | Basic results (no AI) | ❌ |
-| GET | `/api/races/{year}/{round}` | AI summary for specific race | ❌ |
 | GET | `/api/races/{year}/{round}/results` | Basic results + circuit_id | ❌ |
 | GET | `/api/seasons/{year}/schedule` | Season race schedule | ❌ |
 | GET | `/api/standings/drivers?year=X` | Driver standings | ❌ |
@@ -250,15 +248,20 @@ lifespan(app):
 | GET | `/api/circuits/{circuit_id}` | Circuit info + recent results | ❌ |
 | GET | `/api/compare/drivers?a=X&b=Y` | Driver head-to-head comparison | ❌ |
 | GET | `/api/compare/drivers/search?q=ham` | Search drivers by name/code | ❌ |
-| GET | `/api/predictions/drivers` | AI driver championship prediction | ❌ |
-| GET | `/api/predictions/constructors` | AI constructor championship prediction | ❌ |
+| GET | `/api/compare/constructors?a=X&b=Y` | Constructor comparison | ❌ |
+| GET | `/api/compare/constructors/search?q=fer` | Search constructors | ❌ |
+| POST | `/api/auth/register` | Register user → returns JWT | ❌ |
+| POST | `/api/auth/login` | Login → returns JWT | ❌ |
 
 ### Authenticated Endpoints (JWT required)
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| POST | `/api/auth/register` | Register user → returns JWT | ❌ |
-| POST | `/api/auth/login` | Login → returns JWT | ❌ |
+| GET | `/api/races/latest` | AI summary of latest race | ✅ |
+| GET | `/api/races/{year}/{round}` | AI summary for specific race | ✅ |
+| GET | `/api/predictions/drivers` | AI driver championship prediction | ✅ |
+| GET | `/api/predictions/constructors` | AI constructor championship prediction | ✅ |
+| GET | `/api/seasons/{year}/retrospective` | AI season retrospective | ✅ |
 | GET | `/api/users/me` | Current user profile | ✅ |
 | PUT | `/api/users/me` | Update profile | ✅ |
 | GET | `/api/users/me/favorites/` | Get favorite drivers | ✅ |
@@ -902,17 +905,16 @@ docker compose up --build
 
 ### Test Structure
 
-| File | Tests | Purpose |
-|------|-------|---------|
-| `test_api.py` | 21 | Unit tests for API endpoints |
-| `test_e2e.py` | 28+ | E2E tests against running server |
-| `test_retrospective.py` | 7 | Retrospective endpoint tests |
-| `test_compare.py` | 8 | Driver/constructor comparison tests |
-| `test_predictions.py` | 9 | Championship prediction tests |
-| `test_data_parser.py` | 4 | Data parser tests |
-| `test_ai_assistant.py` | 5 | AI fallback tests |
-| `test_push_notifications.py` | 5 | Push notification tests |
-| **Total** | **64** | All passing (unit) |
+| File | Purpose |
+|------|---------|
+| `test_api.py` | API endpoint tests (health, races, standings, drivers, circuits) |
+| `test_e2e.py` | End-to-end tests against running server |
+| `test_retrospective.py` | Season retrospective endpoint tests |
+| `test_compare.py` | Driver/constructor comparison tests |
+| `test_predictions.py` | Championship prediction tests (service + auth) |
+| `test_data_parser.py` | Data parser tests |
+| `test_ai_assistant.py` | AI fallback tests |
+| `test_push_notifications.py` | Push notification endpoint tests |
 
 ### Running Tests
 
