@@ -1,22 +1,70 @@
 # F1 Race Assistant
 
-AI-powered Formula 1 dashboard with race summaries, standings, and a smart chat assistant.
+AI-powered Formula 1 dashboard with real-time race data, standings, predictions, and a smart chat assistant.
+
+## Demo
+
+### Screenshots
+
+**Dashboard — Latest Race**
+![Dashboard](docs/screenshots/dashboard.png)
+
+**Championship Predictions**
+![Predictions](docs/screenshots/predictions.png)
+
+**Driver Comparison**
+![Comparison](docs/screenshots/compare.png)
+
+**AI Chat Assistant**
+![Chat](docs/screenshots/chat.png)
+
+> **Note:** Screenshots directory should contain actual images before submission. Run the app locally and capture relevant screenshots.
+
+### Product Context
+
+**End Users:** Formula 1 fans who want quick, engaging race recaps and championship analysis without browsing multiple websites or watching full race replays.
+
+**Problem:** F1 fans must visit multiple websites (official F1 site, news outlets, stats pages) to get race results, standings, and analysis. AI-generated content is scattered across social media and not personalized. There is no single dashboard that combines real race data with AI-powered insights, predictions, and conversation.
+
+**Our Solution:** A single web application that pulls real race data from the Jolpica-F1 API and uses AI to generate race summaries, season analysis, championship predictions, and free-form Q&A — all in one place with a modern dark-themed UI.
 
 ## Features
 
-- **Latest Race** — AI-generated summaries with real-time data, podium cards, and highlights
-- **Browse Seasons** — Explore any season's race calendar with inline AI summaries
-- **Standings** — Driver and Constructor championship tables for any year
-- **🔮 Predictions** — AI-powered championship predictions with form analysis and contender odds
-- **Reminders** — Set email notifications for upcoming races
-- **🤖 AI Assistant Chat** — Free-form F1 Q&A with verified data, web search fallback, and conversation history
-- **Driver Pages** — Clickable driver profiles with season results
-- **Circuit Pages** — Track info with recent race results
-- **Account** — User profiles, favorite drivers, and reminder management
+### Implemented
 
-## Quick Start
+| Feature | Description |
+|---------|-------------|
+| Latest Race AI Summaries | Podium cards 🥇🥈🥉 + AI-generated race summaries with highlights and insights |
+| Season Browsing | Explore any F1 season (1950–present) with full race calendar and inline AI summaries |
+| Driver Standings | Championship table for any year, clickable driver names |
+| Constructor Standings | Team championship table for any year, clickable team names |
+| Driver Pages | Full profile with season-by-season race results |
+| Circuit Pages | Track info with recent race history |
+| User Accounts + JWT Auth | Registration, login, profiles with password hashing (bcrypt) |
+| Favorites System | Save favorite drivers and teams (heart button) |
+| Race Reminders | Email notifications before upcoming races with APScheduler |
+| AI Chat Assistant | Free-form F1 Q&A with verified data, web search fallback, conversation history |
+| Driver Head-to-Head | Career stats comparison + race-by-race H2H record |
+| Constructor Comparison | Team-vs-team comparison with historical data |
+| Constructor Pages | Team profile with year selector and season results for both drivers |
+| Teammate Mode | Filter H2H to only races where drivers shared a team |
+| Championship Predictions | AI-powered predictions with form analysis, confidence levels, and contender odds (current season) |
+| Browser Push Notifications | Web Push API with VAPID keys, service worker, scheduler integration |
+| Reminder Editing | Edit reminder time and notification method (email/push/all) |
+| AI Response Caching | 6-24 hour TTL depending on content type |
+| Test Suite | 64 unit tests passing |
 
-### Option A: Docker (Recommended)
+### Not Yet Implemented
+
+| Feature | Priority | Notes |
+|---------|----------|-------|
+| Live Race Weekend | High | Real-time session results during race weekends |
+| Push Notification Settings | Low | User preferences for notification types and timing |
+| Championship Predictions for Past Seasons | Low | Currently current-year only |
+
+## Usage
+
+### Quick Start (Docker — Recommended)
 
 ```bash
 docker compose up --build
@@ -24,7 +72,7 @@ docker compose up --build
 
 Open **`http://localhost:8000`** in your browser.
 
-### Option B: Local Python
+### Local Development
 
 ```bash
 # Backend
@@ -37,7 +85,166 @@ npm install
 npm run dev
 ```
 
-Open **`http://localhost:8000`** for the production build or **`http://localhost:5173`** for the dev server.
+Open **`http://localhost:8000`** for the production build or **`http://localhost:5173`** for the Vite dev server.
+
+### Running Tests
+
+```bash
+# Via Docker
+docker exec lab9-f1-assistant-1 python -m pytest tests/ -v --ignore=tests/test_e2e.py
+
+# All 64 unit tests pass
+```
+
+## Deployment
+
+### Target OS
+
+Ubuntu 24.04 LTS (same as university VMs).
+
+### Prerequisites (What Should Be Installed on the VM)
+
+```bash
+# Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# Docker Compose (included with Docker)
+docker compose version
+
+# Optional: reverse proxy for HTTPS
+# Option A: Caddy
+sudo apt install -y caddy
+
+# Option B: Nginx + Certbot
+sudo apt install nginx certbot python3-certbot-nginx
+```
+
+### Step-by-Step Deployment
+
+**1. Copy project files to VM:**
+
+```bash
+scp -r . user@vm-ip:/opt/f1-assistant/
+# Or clone from GitHub:
+git clone https://github.com/YOUR_USERNAME/se-toolkit-hackathon.git /opt/f1-assistant
+cd /opt/f1-assistant
+```
+
+**2. Configure environment variables:**
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Edit `.env` with production values:
+
+```env
+# Database
+DATABASE_URL=postgresql+asyncpg://f1user:STRONG_PASSWORD@postgres:5432/f1_assistant
+JWT_SECRET=generate-a-long-random-string
+
+# AI (Qwen via OpenAI-compatible endpoint)
+QWEN_API_KEY=your-api-key
+QWEN_BASE_URL=http://host.docker.internal:42005/v1
+QWEN_MODEL=coder-model
+
+# SMTP (for email reminders — optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# VAPID (for push notifications)
+VAPID_PRIVATE_KEY=your-private-key
+VAPID_PUBLIC_KEY=your-public-key
+VAPID_CLAIMS=mailto:admin@example.com
+```
+
+Generate secrets:
+
+```bash
+# JWT Secret
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# VAPID Keys
+python3 -c "
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption, PublicFormat
+import base64
+key = ec.generate_private_key(ec.SECP256R1(), default_backend())
+priv = base64.urlsafe_b64encode(key.private_bytes(Encoding.DER, PrivateFormat.PKCS8, NoEncryption())).decode()
+pub = base64.urlsafe_b64encode(key.public_key().public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)).decode()
+print(f'VAPID_PRIVATE_KEY={priv}')
+print(f'VAPID_PUBLIC_KEY={pub}')
+"
+```
+
+**3. Start services:**
+
+```bash
+docker compose up -d --build
+```
+
+**4. Verify deployment:**
+
+```bash
+# Check health
+curl http://localhost:8000/health
+
+# Check logs
+docker compose logs -f f1-assistant
+```
+
+**5. (Optional) Add HTTPS with Caddy:**
+
+Create `/etc/caddy/Caddyfile`:
+
+```
+your-domain.com {
+    reverse_proxy localhost:8000
+}
+```
+
+```bash
+sudo systemctl restart caddy
+```
+
+**6. (Optional) Add HTTPS with Nginx + Certbot:**
+
+```bash
+sudo nano /etc/nginx/sites-available/f1-assistant
+```
+
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+```bash
+sudo ln -s /etc/nginx/sites-available/f1-assistant /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+sudo certbot --nginx -d your-domain.com
+```
+
+### Production Notes
+
+- **CORS:** Change `allow_origins=["*"]` in `main.py` to your domain in production
+- **Database backups:** Set up daily `pg_dump` cron job
+- **Monitoring:** Add health check cron (`*/5 * * * * curl -sf localhost:8000/health`)
+- **Auto-restart:** `docker-compose.yml` has `restart: unless-stopped`
 
 ## Tech Stack
 
@@ -48,125 +255,39 @@ Open **`http://localhost:8000`** for the production build or **`http://localhost
 | **Database** | PostgreSQL 18 (asyncpg + SQLAlchemy) |
 | **AI** | Qwen via OpenAI-compatible endpoint |
 | **External API** | Jolpica-F1 (Ergast mirror at api.jolpi.ca) |
-| **Containerisation** | Docker + Docker Compose |
+| **Containerization** | Docker + Docker Compose |
+| **Scheduler** | APScheduler (background reminder checks) |
+| **Push Notifications** | Web Push API + pywebpush + service worker |
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/` | React SPA |
-| GET | `/health` | Health check |
-| GET | `/api/races/latest` | AI race summary |
-| GET | `/api/races/latest/results` | Basic race results |
-| GET | `/api/races/{year}/{round}` | AI summary for specific race |
-| GET | `/api/races/{year}/{round}/results` | Basic results + circuit info |
-| GET | `/api/seasons/{year}/schedule` | Season race schedule |
-| GET | `/api/standings/drivers?year=X` | Driver standings |
-| GET | `/api/standings/constructors?year=X` | Constructor standings |
-| GET | `/api/drivers/{driver_id}` | Driver profile + results |
-| GET | `/api/circuits/{circuit_id}` | Circuit info + recent results |
-| POST | `/api/auth/register` | Register user |
-| POST | `/api/auth/login` | Login → JWT |
-| GET/PUT | `/api/users/me` | Current user profile |
-| GET/POST/DELETE | `/api/users/me/favorites` | Driver favorites |
-| GET/POST/PUT/DELETE | `/api/reminders` | Race reminders |
-| GET/POST/DELETE | `/api/chat/sessions` | Chat session management |
-| POST | `/api/chat/sessions/{id}/generate` | Generate AI chat response |
-| GET | `/api/predictions/drivers` | AI driver championship prediction |
-| GET | `/api/predictions/constructors` | AI constructor championship prediction |
-
-## Project Structure
-
-```
-lab9/
-├── config.py                  # Configuration constants
-├── main.py                    # FastAPI application (17+ endpoints)
-├── demo.py                    # CLI demo script
-├── requirements.txt           # Python dependencies
-├── Dockerfile                 # Multi-stage build (Node.js + Python)
-├── docker-compose.yml         # postgres + f1-assistant
-├── frontend/                  # React TypeScript frontend
-│   ├── src/
-│   │   ├── App.tsx            # Main app with routing
-│   │   ├── types/api.ts       # TypeScript type definitions
-│   │   ├── services/api.ts    # API service layer (fetch)
-│   │   ├── contexts/AuthContext.tsx  # Auth state management
-│   │   ├── components/        # Layout, tabs
-│   │   └── pages/             # Route-level pages
-│   └── vite.config.ts
-├── db/
-│   ├── database.py            # Async engine, session, init_db
-│   └── models.py              # User, Favorite, Reminder, RaceCache, ChatSession, ChatMessage
-├── database/
-│   └── schema.sql             # Raw SQL schema
-├── services/
-│   ├── ergast_client.py       # 8 methods: races, standings, drivers, circuits
-│   ├── data_parser.py         # Raw data → prompt formatter
-│   ├── ai_assistant.py        # Qwen LLM summarizer
-│   ├── auth.py                # Password hashing (bcrypt), JWT
-│   ├── scheduler.py           # APScheduler: reminder emails
-│   ├── cache_service.py       # AI response caching with TTL
-│   └── prediction_service.py  # Championship predictions with form analysis
-├── endpoints/
-│   ├── auth.py                # POST /api/auth/*
-│   ├── users.py               # GET/PUT /api/users/me
-│   ├── reminders.py           # GET/POST/PUT/DELETE /api/reminders/*
-│   ├── favorites.py           # GET/POST/DELETE /api/users/me/favorites/*
-│   ├── chat.py                # Chat sessions + AI responses
-│   ├── compare.py             # GET /api/compare/* — Driver & constructor H2H
-│   └── predictions.py         # GET /api/predictions/* — Championship predictions
-├── models/
-│   ├── schemas.py             # AI response schemas
-│   └── reminder_schemas.py    # Reminder schemas
-└── tests/
-    ├── test_api.py            # 21 unit tests
-    ├── test_e2e.py            # 28 e2e tests (58 total passing)
-    └── ...
-```
-
-## Running Tests
-
-```bash
-# Via Docker (recommended)
-docker exec lab9-f1-assistant-1 python -m pytest tests/ -v
-
-# All 58 tests pass (30 unit + 28 e2e)
-```
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/` | React SPA | ❌ |
+| GET | `/health` | Health check | ❌ |
+| GET | `/api/races/latest` | AI race summary | ❌ |
+| GET | `/api/races/latest/results` | Basic race results | ❌ |
+| GET | `/api/seasons/{year}/schedule` | Season race schedule | ❌ |
+| GET | `/api/standings/drivers?year=X` | Driver standings | ❌ |
+| GET | `/api/standings/constructors?year=X` | Constructor standings | ❌ |
+| GET | `/api/predictions/drivers` | AI driver championship prediction | ❌ |
+| GET | `/api/predictions/constructors` | AI constructor championship prediction | ❌ |
+| POST | `/api/auth/register` | Register user | ❌ |
+| POST | `/api/auth/login` | Login → JWT | ❌ |
+| GET | `/api/users/me` | Current user profile | ✅ |
+| GET/POST/PUT/DELETE | `/api/reminders` | Race reminders | ✅ |
+| GET/POST/DELETE | `/api/chat/sessions` | Chat session management | ✅ |
+| POST | `/api/chat/sessions/{id}/generate` | Generate AI chat response | ✅ |
 
 ## Security
 
-The AI chat endpoint includes multiple security layers:
-
 - **Input sanitization** — Strips control characters, truncates to 2000 chars
-- **Rate limiting** — 10 messages per 60 seconds per user
+- **Rate limiting** — 10 chat messages per 60 seconds per user
 - **Prompt injection protection** — Blocks "ignore instructions" patterns
 - **SQL injection prevention** — SQLAlchemy parameterized queries
-- **Session ownership** — Users can only access their own chat sessions
-- **XSS prevention** — Markdown rendering with element whitelist, no script/iframe
+- **Session ownership** — Users can only access their own data
+- **Password hashing** — bcrypt with work factor 12
 
 ## Data Source
 
-All race data comes from the **Jolpica-F1 API** (`api.jolpi.ca`) — a community-maintained, fully compatible mirror of the legacy Ergast F1 API. The original Ergast API was deprecated at the end of the 2024 season.
-
-## Version Info
-
-**Current Version:** V2 (Full F1 Assistant)
-
-✅ Personal accounts with JWT auth
-✅ Race reminders with email scheduler
-✅ PostgreSQL database
-✅ React frontend with dark theme
-✅ AI Assistant chat with verified data
-✅ Web search fallback for comprehensive answers
-✅ Driver head-to-head pages
-✅ Circuit pages with recent results
-✅ Favorites system (heart button on driver pages)
-✅ Constructor comparison tool
-✅ Constructor pages with year selector + results
-✅ Championship predictions with AI-powered analysis
-✅ Browser push notifications
-✅ 6-hour prediction caching
-✅ All 64+ tests passing
-
-**Planned for future:**
-- Live Race Weekend — real-time session results during race weekends
+All race data comes from the **Jolpica-F1 API** (`api.jolpi.ca`) — a community-maintained, fully compatible mirror of the legacy Ergast F1 API.
