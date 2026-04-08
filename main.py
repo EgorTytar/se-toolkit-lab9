@@ -4,7 +4,7 @@ import logging
 import datetime
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
@@ -25,6 +25,7 @@ from endpoints.retrospective import router as retrospective_router
 from endpoints.compare import router as compare_router
 from endpoints.push_notifications import router as push_router
 from endpoints.predictions import router as predictions_router
+from dependencies import get_current_user
 from services.scheduler import start_scheduler, stop_scheduler
 from services.cache_service import get_cached_response, cache_response, CACHE_TTL_RACE_SUMMARY, CACHE_TTL_RETROSPECTIVE
 
@@ -135,13 +136,17 @@ async def health_check() -> dict:
 @app.get(
     "/api/races/latest",
     response_model=RaceSummaryResponse,
-    responses={500: {"model": ErrorResponse}},
+    responses={401: {"description": "Authentication required"}, 500: {"model": ErrorResponse}},
 )
-async def get_latest_race_summary(user_query: str = "") -> RaceSummaryResponse:
+async def get_latest_race_summary(
+    user_query: str = "",
+    user: User = Depends(get_current_user),
+) -> RaceSummaryResponse:
     """Summarize the most recent Formula 1 race.
 
-    Fetches results from the Ergast API and generates an AI-powered summary.
-    Optionally pass a `user_query` to ask a specific question.
+    Requires authentication. Fetches results from the Ergast API
+    and generates an AI-powered summary. Optionally pass a `user_query`
+    to ask a specific question.
     """
     try:
         race_data = await ergast_client.get_latest_race()
@@ -413,14 +418,14 @@ async def _try_schedule_preview(year: int, round: int) -> dict:
 @app.get(
     "/api/races/{year}/{round}",
     response_model=RaceSummaryResponse,
-    responses={500: {"model": ErrorResponse}},
+    responses={401: {"description": "Authentication required"}, 500: {"model": ErrorResponse}},
 )
 async def get_race_summary(
-    year: int, round: int, user_query: str = ""
+    year: int, round: int, user_query: str = "", user: User = Depends(get_current_user)
 ) -> RaceSummaryResponse:
     """Summarize a specific Formula 1 race by year and round number.
 
-    For future races (no results), generates a race preview instead.
+    Requires authentication. For future races (no results), generates a race preview instead.
     Example: `/api/races/2024/1` for the first race of 2024.
     """
     current_year = datetime.datetime.now().year

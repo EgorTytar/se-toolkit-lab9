@@ -18,8 +18,6 @@ AI-powered Formula 1 dashboard with real-time race data, standings, predictions,
 **AI Chat Assistant**
 ![Chat](docs/screenshots/chat.png)
 
-> **Note:** Screenshots directory should contain actual images before submission. Run the app locally and capture relevant screenshots.
-
 ### Product Context
 
 **End Users:** Formula 1 fans who want quick, engaging race recaps and championship analysis without browsing multiple websites or watching full race replays.
@@ -54,46 +52,39 @@ AI-powered Formula 1 dashboard with real-time race data, standings, predictions,
 | AI Response Caching | 6-24 hour TTL depending on content type |
 | Test Suite | 64 unit tests passing |
 
-### Not Yet Implemented
-
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Live Race Weekend | High | Real-time session results during race weekends |
-| Push Notification Settings | Low | User preferences for notification types and timing |
-| Championship Predictions for Past Seasons | Low | Currently current-year only |
-
 ## Usage
 
-### Quick Start (Docker — Recommended)
+### 1. Start the Application
 
 ```bash
+# One command — builds and starts everything
 docker compose up --build
 ```
 
 Open **`http://localhost:8000`** in your browser.
 
-### Local Development
+### 2. Explore the Dashboard
+
+No account needed for browsing:
+- **Browse Seasons** — Enter any year (1950–present) to see the full race calendar
+- **Standings** — Driver and Constructor championship tables
+- **Compare** — Head-to-head driver and constructor comparisons
+- **Latest Race** — View podium cards and basic race results
+
+### 3. Create an Account
+
+Click **Account → Register** to unlock AI-powered features:
+- **AI Race Summaries** — AI-generated race summaries with highlights and insights
+- **Predictions** — AI-powered championship predictions with form analysis
+- **AI Assistant** — Free-form F1 Q&A with verified data and web search fallback
+- Save favorite drivers and teams
+- Set email/push reminders for upcoming races
+- View season retrospectives
+
+### 4. Run Tests
 
 ```bash
-# Backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-
-# Frontend (separate terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-Open **`http://localhost:8000`** for the production build or **`http://localhost:5173`** for the Vite dev server.
-
-### Running Tests
-
-```bash
-# Via Docker
 docker exec lab9-f1-assistant-1 python -m pytest tests/ -v --ignore=tests/test_e2e.py
-
-# All 64 unit tests pass
 ```
 
 ## Deployment
@@ -127,7 +118,7 @@ sudo apt install nginx certbot python3-certbot-nginx
 ```bash
 scp -r . user@vm-ip:/opt/f1-assistant/
 # Or clone from GitHub:
-git clone https://github.com/YOUR_USERNAME/se-toolkit-hackathon.git /opt/f1-assistant
+git clone https://github.com/EgorTytar/se-toolkit-hackathon.git /opt/f1-assistant
 cd /opt/f1-assistant
 ```
 
@@ -265,13 +256,20 @@ sudo certbot --nginx -d your-domain.com
 |--------|------|-------------|------|
 | GET | `/` | React SPA | ❌ |
 | GET | `/health` | Health check | ❌ |
-| GET | `/api/races/latest` | AI race summary | ❌ |
+| GET | `/api/races/latest` | AI race summary | ✅ |
 | GET | `/api/races/latest/results` | Basic race results | ❌ |
+| GET | `/api/races/{year}/{round}` | AI summary for specific race | ✅ |
+| GET | `/api/races/{year}/{round}/results` | Basic results + circuit info | ❌ |
 | GET | `/api/seasons/{year}/schedule` | Season race schedule | ❌ |
 | GET | `/api/standings/drivers?year=X` | Driver standings | ❌ |
 | GET | `/api/standings/constructors?year=X` | Constructor standings | ❌ |
-| GET | `/api/predictions/drivers` | AI driver championship prediction | ❌ |
-| GET | `/api/predictions/constructors` | AI constructor championship prediction | ❌ |
+| GET | `/api/drivers/{driver_id}` | Driver profile + results | ❌ |
+| GET | `/api/circuits/{circuit_id}` | Circuit info + recent results | ❌ |
+| GET | `/api/compare/drivers?a=X&b=Y` | Driver head-to-head comparison | ❌ |
+| GET | `/api/compare/constructors?a=X&b=Y` | Constructor comparison | ❌ |
+| GET | `/api/predictions/drivers` | AI driver championship prediction | ✅ |
+| GET | `/api/predictions/constructors` | AI constructor championship prediction | ✅ |
+| GET | `/api/seasons/{year}/retrospective` | AI season retrospective | ✅ |
 | POST | `/api/auth/register` | Register user | ❌ |
 | POST | `/api/auth/login` | Login → JWT | ❌ |
 | GET | `/api/users/me` | Current user profile | ✅ |

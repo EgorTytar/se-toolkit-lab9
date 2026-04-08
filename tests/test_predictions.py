@@ -58,56 +58,63 @@ def setup_prediction_mocks(mock_ergast_client, mock_ai_summarizer):
     mock_ai_summarizer.chat_response = AsyncMock(return_value=SAMPLE_AI_PREDICTION_RESPONSE)
 
 
+# ── Auth requirement tests ──
+
+def test_predict_driver_championship_requires_auth(test_app):
+    """Driver prediction endpoint requires authentication."""
+    response = test_app.get("/api/predictions/drivers")
+    assert response.status_code == 403
+
+
+def test_predict_constructor_championship_requires_auth(test_app):
+    """Constructor prediction endpoint requires authentication."""
+    response = test_app.get("/api/predictions/constructors")
+    assert response.status_code == 403
+
+
+# ── Service-level tests (bypass HTTP auth) ──
+
 @pytest.fixture
 def mock_prediction_service(mock_ergast_client, mock_ai_summarizer):
-    """Patch PredictionService and cache to use mocked clients."""
-    # Override standings to return data for current year
-    mock_ergast_client.get_driver_standings = AsyncMock(return_value=list(SAMPLE_DRIVER_STANDINGS))
-    mock_ergast_client.get_constructor_standings = AsyncMock(return_value=list(SAMPLE_CONSTRUCTOR_STANDINGS))
-    mock_ergast_client.get_season_schedule = AsyncMock(return_value=list(SAMPLE_SCHEDULE))
-    mock_ergast_client.get_driver_season_results = AsyncMock(return_value=SAMPLE_SEASON_RESULTS)
-    mock_ergast_client.get_constructor_all_results = AsyncMock(return_value=SAMPLE_CONSTRUCTOR_RESULTS)
-    mock_ergast_client.close = AsyncMock(return_value=None)
-    mock_ergast_client.get_driver_info = AsyncMock(return_value={"driver_id": "max_verstappen", "full_name": "Max Verstappen"})
+    """Patch PredictionService to use mocked clients."""
+    setup_prediction_mocks(mock_ergast_client, mock_ai_summarizer)
 
-    # AI summarizer mocks
-    mock_ai_summarizer.is_available = True
-    mock_ai_summarizer.chat_response = AsyncMock(return_value=SAMPLE_AI_PREDICTION_RESPONSE)
-
-    # Mock cache to always return None (no cache hits in tests)
     mock_cache = AsyncMock(return_value=None)
 
     with patch('services.prediction_service.ErgastClient', return_value=mock_ergast_client), \
          patch('services.prediction_service.AISummarizer', return_value=mock_ai_summarizer), \
-         patch('endpoints.predictions.get_cached_response', mock_cache), \
-         patch('endpoints.predictions.cache_response', AsyncMock()):
+         patch('services.cache_service.get_cached_response', mock_cache), \
+         patch('services.cache_service.cache_response', AsyncMock()):
         yield
 
 
-# ── Driver prediction endpoint tests ──
+@pytest.mark.asyncio
+async def test_predict_driver_championship_returns_prediction(mock_prediction_service):
+    """Driver prediction service returns structured prediction."""
+    from services.prediction_service import PredictionService
 
-def test_predict_driver_championship_returns_prediction(test_app, mock_prediction_service):
-    """Driver prediction endpoint returns structured prediction."""
-    response = test_app.get("/api/predictions/drivers")
-    assert response.status_code == 200
-    data = response.json()
+    service = PredictionService()
+    result = await service.predict_driver_champion()
 
-    assert data["season"] == datetime.now().year
-    assert data["type"] == "drivers"
-    assert "predicted_champion" in data
-    assert "top_contenders" in data
-    assert "form_analysis" in data
-    assert "ai_reasoning" in data
-    assert "races_completed" in data
-    assert "races_remaining" in data
+    assert result["season"] == datetime.now().year
+    assert result["type"] == "drivers"
+    assert "predicted_champion" in result
+    assert "top_contenders" in result
+    assert "form_analysis" in result
+    assert "ai_reasoning" in result
+    assert "races_completed" in result
+    assert "races_remaining" in result
 
 
-def test_predict_driver_champion_structure(test_app, mock_prediction_service):
+@pytest.mark.asyncio
+async def test_predict_driver_champion_structure(mock_prediction_service):
     """Driver prediction champion has correct structure."""
-    response = test_app.get("/api/predictions/drivers")
-    data = response.json()
+    from services.prediction_service import PredictionService
 
-    champion = data["predicted_champion"]
+    service = PredictionService()
+    result = await service.predict_driver_champion()
+
+    champion = result["predicted_champion"]
     assert champion is not None
     assert "name" in champion
     assert "current_points" in champion
@@ -115,85 +122,85 @@ def test_predict_driver_champion_structure(test_app, mock_prediction_service):
     assert "confidence" in champion
 
 
-def test_predict_constructor_championship_returns_prediction(test_app, mock_prediction_service):
-    """Constructor prediction endpoint returns structured prediction."""
-    response = test_app.get("/api/predictions/constructors")
-    assert response.status_code == 200
-    data = response.json()
+@pytest.mark.asyncio
+async def test_predict_constructor_championship_returns_prediction(mock_prediction_service):
+    """Constructor prediction service returns structured prediction."""
+    from services.prediction_service import PredictionService
 
-    assert data["season"] == datetime.now().year
-    assert data["type"] == "constructors"
-    assert "predicted_champion" in data
-    assert "top_contenders" in data
-    assert "form_analysis" in data
+    service = PredictionService()
+    result = await service.predict_constructor_champion()
+
+    assert result["season"] == datetime.now().year
+    assert result["type"] == "constructors"
+    assert "predicted_champion" in result
+    assert "top_contenders" in result
+    assert "form_analysis" in result
 
 
-def test_predict_constructor_champion_structure(test_app, mock_prediction_service):
+@pytest.mark.asyncio
+async def test_predict_constructor_champion_structure(mock_prediction_service):
     """Constructor prediction champion has correct structure."""
-    response = test_app.get("/api/predictions/constructors")
-    data = response.json()
+    from services.prediction_service import PredictionService
 
-    champion = data["predicted_champion"]
+    service = PredictionService()
+    result = await service.predict_constructor_champion()
+
+    champion = result["predicted_champion"]
     assert champion is not None
     assert "name" in champion
     assert "current_points" in champion
     assert "predicted_final_points" in champion
     assert "confidence" in champion
-
-
-# ── Edge case tests ──
-
-def test_predict_driver_no_year_parameter(test_app, mock_prediction_service):
-    """Driver prediction does not require year parameter (current year only)."""
-    response = test_app.get("/api/predictions/drivers")
-    # Should succeed without year parameter
-    assert response.status_code == 200
-
-
-def test_predict_constructor_no_year_parameter(test_app, mock_prediction_service):
-    """Constructor prediction does not require year parameter (current year only)."""
-    response = test_app.get("/api/predictions/constructors")
-    # Should succeed without year parameter
-    assert response.status_code == 200
 
 
 # ── AI unavailable fallback tests ──
 
-def test_prediction_works_without_ai(test_app, mock_ergast_client, mock_ai_summarizer, mock_prediction_service):
+@pytest.mark.asyncio
+async def test_prediction_works_without_ai(mock_ergast_client, mock_ai_summarizer):
     """Prediction works with statistical fallback when AI is unavailable."""
+    setup_prediction_mocks(mock_ergast_client, mock_ai_summarizer)
     mock_ai_summarizer.is_available = False
 
-    response = test_app.get("/api/predictions/drivers")
-    assert response.status_code == 200
-    data = response.json()
+    with patch('services.prediction_service.ErgastClient', return_value=mock_ergast_client), \
+         patch('services.prediction_service.AISummarizer', return_value=mock_ai_summarizer):
+        from services.prediction_service import PredictionService
 
-    # Should still return prediction with statistical data
-    assert data["season"] == datetime.now().year
-    assert "predicted_champion" in data
+        service = PredictionService()
+        result = await service.predict_driver_champion()
+
+        # Should still return prediction with statistical data
+        assert result["season"] == datetime.now().year
+        assert "predicted_champion" in result
 
 
 # ── Form analysis tests ──
 
-def test_form_analysis_included_in_prediction(test_app, mock_prediction_service):
+@pytest.mark.asyncio
+async def test_form_analysis_included_in_prediction(mock_prediction_service):
     """Form analysis is included in prediction response."""
-    response = test_app.get("/api/predictions/drivers")
-    data = response.json()
+    from services.prediction_service import PredictionService
 
-    form = data.get("form_analysis", {})
+    service = PredictionService()
+    result = await service.predict_driver_champion()
+
+    form = result.get("form_analysis", {})
     # Form analysis should have entries for top drivers
     assert isinstance(form, dict)
 
 
 # ── Race count tests ──
 
-def test_races_completed_and_remaining(test_app, mock_prediction_service):
+@pytest.mark.asyncio
+async def test_races_completed_and_remaining(mock_prediction_service):
     """Prediction includes races completed and remaining counts."""
-    response = test_app.get("/api/predictions/drivers")
-    data = response.json()
+    from services.prediction_service import PredictionService
 
-    assert "races_completed" in data
-    assert "races_remaining" in data
-    assert isinstance(data["races_completed"], int)
-    assert isinstance(data["races_remaining"], int)
-    assert data["races_completed"] >= 0
-    assert data["races_remaining"] >= 0
+    service = PredictionService()
+    result = await service.predict_driver_champion()
+
+    assert "races_completed" in result
+    assert "races_remaining" in result
+    assert isinstance(result["races_completed"], int)
+    assert isinstance(result["races_remaining"], int)
+    assert result["races_completed"] >= 0
+    assert result["races_remaining"] >= 0

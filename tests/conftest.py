@@ -149,3 +149,17 @@ def sample_race():
 def sample_schedule():
     """Return a copy of sample schedule."""
     return list(SAMPLE_SCHEDULE)
+
+
+@pytest.fixture
+def auth_headers():
+    """Return headers with a valid JWT token for authenticated requests.
+
+    Creates a test user token using the same secret as the app.
+    """
+    from services.auth import create_access_token
+    import os
+
+    # Create a token for a fake user ID
+    token = create_access_token(data={"sub": "1"})
+    return {"Authorization": f"Bearer {token}"}

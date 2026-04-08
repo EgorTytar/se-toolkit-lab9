@@ -28,7 +28,7 @@ def test_root_serves_html(test_app):
 # ── Latest race endpoints ──
 
 def test_latest_race_results(test_app):
-    """Latest race basic results endpoint returns structured data."""
+    """Latest race basic results endpoint returns structured data (no auth required)."""
     response = test_app.get("/api/races/latest/results")
     assert response.status_code == 200
     data = response.json()
@@ -39,27 +39,16 @@ def test_latest_race_results(test_app):
     assert len(data["podium"]) == 3
 
 
-def test_latest_race_summary(test_app):
-    """Latest race summary endpoint returns AI response."""
+def test_latest_race_summary_requires_auth(test_app):
+    """Latest race summary endpoint requires authentication."""
     response = test_app.get("/api/races/latest")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["race_name"] == "Bahrain Grand Prix"
-    assert data["season"] == "2024"
-    assert data["round"] == 1
-    assert "ai_response" in data
-    assert "summary" in data["ai_response"]
-    assert "highlights" in data["ai_response"]
-    assert "insights" in data["ai_response"]
-    assert "answer" in data["ai_response"]
+    assert response.status_code == 403
 
 
-def test_latest_race_with_user_query(test_app):
-    """Latest race summary accepts user_query parameter."""
+def test_latest_race_with_user_query_requires_auth(test_app):
+    """Latest race summary with user_query requires authentication."""
     response = test_app.get("/api/races/latest?user_query=Who+won?")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["ai_response"]["summary"] == "Test summary for the race."
+    assert response.status_code == 403
 
 
 # ── Season schedule endpoint ──
@@ -102,13 +91,10 @@ def test_race_results_by_year_round(test_app):
     assert data["podium"][0]["name"] == "Max Verstappen"
 
 
-def test_race_summary_by_year_round(test_app):
-    """Race summary by year and round returns AI response."""
+def test_race_summary_by_year_round_requires_auth(test_app):
+    """Race summary by year and round requires authentication."""
     response = test_app.get("/api/races/2024/1")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["race_name"] == "Bahrain Grand Prix"
-    assert data["ai_response"]["summary"] == "Test summary for the race."
+    assert response.status_code == 403
 
 
 def test_race_future_year(test_app):
@@ -209,8 +195,10 @@ def test_404_for_unknown_route(test_app):
 
 def test_invalid_year_range(test_app):
     """Year outside valid range returns appropriate error."""
+    # AI summary endpoint now requires auth (returns 403 before year validation)
     response = test_app.get("/api/races/1800/1")
-    assert response.status_code == 400
+    assert response.status_code == 403
 
+    # Results endpoint is public and validates year
     response = test_app.get("/api/races/2099/1/results")
     assert response.status_code == 400
