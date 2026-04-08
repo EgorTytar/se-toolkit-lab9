@@ -66,19 +66,19 @@ Open **`http://localhost:8000`** in your browser.
 ### 2. Explore the Dashboard
 
 No account needed for browsing:
-- **Latest Race** — View podium cards and AI-generated race summaries
 - **Browse Seasons** — Enter any year (1950–present) to see the full race calendar
 - **Standings** — Driver and Constructor championship tables
-- **Predictions** — AI-powered championship predictions with form analysis
 - **Compare** — Head-to-head driver and constructor comparisons
-- **AI Assistant** — Free-form F1 Q&A (requires account)
+- **Latest Race** — View podium cards and basic race results
 
 ### 3. Create an Account
 
-Click **Account → Register** to unlock:
+Click **Account → Register** to unlock AI-powered features:
+- **AI Race Summaries** — AI-generated race summaries with highlights and insights
+- **Predictions** — AI-powered championship predictions with form analysis
+- **AI Assistant** — Free-form F1 Q&A with verified data and web search fallback
 - Save favorite drivers and teams
 - Set email/push reminders for upcoming races
-- Use the AI chat assistant with conversation history
 - View season retrospectives
 
 ### 4. Run Tests
@@ -257,13 +257,20 @@ sudo certbot --nginx -d your-domain.com
 |--------|------|-------------|------|
 | GET | `/` | React SPA | ❌ |
 | GET | `/health` | Health check | ❌ |
-| GET | `/api/races/latest` | AI race summary | ❌ |
+| GET | `/api/races/latest` | AI race summary | ✅ |
 | GET | `/api/races/latest/results` | Basic race results | ❌ |
+| GET | `/api/races/{year}/{round}` | AI summary for specific race | ✅ |
+| GET | `/api/races/{year}/{round}/results` | Basic results + circuit info | ❌ |
 | GET | `/api/seasons/{year}/schedule` | Season race schedule | ❌ |
 | GET | `/api/standings/drivers?year=X` | Driver standings | ❌ |
 | GET | `/api/standings/constructors?year=X` | Constructor standings | ❌ |
-| GET | `/api/predictions/drivers` | AI driver championship prediction | ❌ |
-| GET | `/api/predictions/constructors` | AI constructor championship prediction | ❌ |
+| GET | `/api/drivers/{driver_id}` | Driver profile + results | ❌ |
+| GET | `/api/circuits/{circuit_id}` | Circuit info + recent results | ❌ |
+| GET | `/api/compare/drivers?a=X&b=Y` | Driver head-to-head comparison | ❌ |
+| GET | `/api/compare/constructors?a=X&b=Y` | Constructor comparison | ❌ |
+| GET | `/api/predictions/drivers` | AI driver championship prediction | ✅ |
+| GET | `/api/predictions/constructors` | AI constructor championship prediction | ✅ |
+| GET | `/api/seasons/{year}/retrospective` | AI season retrospective | ✅ |
 | POST | `/api/auth/register` | Register user | ❌ |
 | POST | `/api/auth/login` | Login → JWT | ❌ |
 | GET | `/api/users/me` | Current user profile | ✅ |

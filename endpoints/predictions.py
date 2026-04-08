@@ -7,6 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.database import get_db
+from db.models import User
+from dependencies import get_current_user
 from services.cache_service import get_cached_response, cache_response
 from services.prediction_service import PredictionService
 
@@ -21,10 +23,11 @@ CACHE_TTL_PREDICTION = datetime.timedelta(hours=6)
 @router.get("/drivers")
 async def predict_driver_championship(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> dict:
     """Predict the driver championship outcome for the current season.
 
-    Results are cached for 6 hours.
+    Requires authentication. Results are cached for 6 hours.
 
     Returns:
         - Predicted champion with confidence level
@@ -65,10 +68,11 @@ async def predict_driver_championship(
 @router.get("/constructors")
 async def predict_constructor_championship(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> dict:
     """Predict the constructor championship outcome for the current season.
 
-    Results are cached for 6 hours.
+    Requires authentication. Results are cached for 6 hours.
 
     Returns:
         - Predicted champion with confidence level
