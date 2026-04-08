@@ -12,8 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.database import async_session
-from db.models import Reminder, User
+from db.models import Reminder, User, PushSubscription
 from services.ergast_client import ErgastClient
+from services.push_service import send_push_notification
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,40 @@ async def check_and_notify() -> None:
                             f"Circuit: {race_data['circuit']}\n\n"
                             f"See you at the track!"
                         )
-                        _send_email(user.email, subject, body)
+
+                        # Send email if method includes email
+                        if reminder.method in ('email', 'all'):
+                            _send_email(user.email, subject, body)
+
+                        # Send push notifications if method includes push
+                        if reminder.method in ('push', 'all'):
+                            subs_result = await db.execute(
+                                select(PushSubscription).where(PushSubscription.user_id == user.id)
+                            )
+                            subs = subs_result.scalars().all()
+                            if subs:
+                                push_title = f"🏎️ {race_data['race_name']}"
+                                push_body = f"Starts in {time_desc} at {race_data['circuit']}!"
+                                expired_subs = []
+                                for sub in subs:
+                                    success = await send_push_notification(
+                                        endpoint=sub.endpoint,
+                                        p256dh=sub.p256dh,
+                                        auth=sub.auth,
+                                        title=push_title,
+                                        body=push_body,
+                                    )
+                                    if not success:
+                                        expired_subs.append(sub)
+
+                                for expired in expired_subs:
+                                    await db.delete(expired)
+                                    logger.info(
+                                        "Removed expired push subscription for user %s", user.id
+                                    )
+                                if expired_subs:
+                                    await db.commit()
+                        # Legacy: old reminders with method='email' won't get push, which is correct
             except Exception as e:
                 logger.warning(
                     "Reminder check failed for user %s, race %s/%s: %s",

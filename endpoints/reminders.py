@@ -64,6 +64,8 @@ async def update_reminder(
         reminder.notify_before_hours = body.notify_before_hours
     if body.enabled is not None:
         reminder.enabled = body.enabled
+    if body.method is not None:
+        reminder.method = body.method
 
     db.add(reminder)
     await db.flush()

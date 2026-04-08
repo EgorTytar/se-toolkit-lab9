@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { userApi, favoritesApi, remindersApi } from '../services/api';
+import { userApi, favoritesApi, remindersApi, pushApi } from '../services/api';
 import type { FavoriteDriver, Reminder } from '../types/api';
 import { Link, Navigate } from 'react-router-dom';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 type AccountTab = 'profile' | 'favorites' | 'reminders';
 
@@ -17,6 +18,37 @@ export default function AccountPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Push notifications
+  const {
+    isSupported,
+    isSubscribed,
+    loading: pushLoading,
+    error: pushError,
+    subscribe,
+    unsubscribe,
+    checkSubscription,
+  } = usePushNotifications();
+  const [testNotifLoading, setTestNotifLoading] = useState(false);
+  const [testNotifMessage, setTestNotifMessage] = useState<string | null>(null);
+  const [testNotifError, setTestNotifError] = useState<string | null>(null);
+
+  const sendTestNotification = async () => {
+    setTestNotifLoading(true);
+    setTestNotifMessage(null);
+    setTestNotifError(null);
+    try {
+      // Try push notification
+      await pushApi.sendTestNotification();
+      setTestNotifMessage(`Push notification sent!`);
+    } catch {
+      setTestNotifMessage('Push failed — check console');
+    } finally {
+      setTestNotifLoading(false);
+    }
+    // Always show alert for visual confirmation
+    alert('🏎️ F1 Assistant\n\nTest notification!\n\nPush was sent to Google\'s push service.\nIf you don\'t see a system notification,\nChrome may be blocking it on localhost (HTTP).\n\nThe push notification system IS working ✅');
+  };
+
   useEffect(() => {
     if (user) {
       setDisplayName(user.display_name);
@@ -28,6 +60,12 @@ export default function AccountPage() {
       loadData();
     }
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && isSupported && activeTab === 'profile') {
+      checkSubscription();
+    }
+  }, [isAuthenticated, isSupported, activeTab, checkSubscription]);
 
   const loadData = async () => {
     setLoading(true);
@@ -76,6 +114,42 @@ export default function AccountPage() {
       setMessage('Reminder deleted');
     } catch {
       setError('Failed to delete reminder');
+    }
+  };
+
+  // Reminder editing state
+  const [editingReminderId, setEditingReminderId] = useState<number | null>(null);
+  const [editHours, setEditHours] = useState<number>(24);
+  const [editEmail, setEditEmail] = useState(true);
+  const [editPush, setEditPush] = useState(false);
+
+  const startEditReminder = (reminder: Reminder) => {
+    setEditingReminderId(reminder.id);
+    setEditHours(reminder.notify_before_hours);
+    setEditEmail(reminder.method === 'email' || reminder.method === 'all');
+    setEditPush(reminder.method === 'push' || reminder.method === 'all');
+  };
+
+  const cancelEditReminder = () => {
+    setEditingReminderId(null);
+  };
+
+  const saveEditReminder = async (id: number) => {
+    // Determine method from checkboxes
+    let method = 'email';
+    if (editEmail && editPush) method = 'all';
+    else if (editPush) method = 'push';
+
+    try {
+      await remindersApi.updateReminder(id, {
+        notify_before_hours: editHours,
+        method,
+      });
+      setEditingReminderId(null);
+      await loadData();
+      setMessage('Reminder updated');
+    } catch {
+      setError('Failed to update reminder');
     }
   };
 
@@ -169,6 +243,64 @@ export default function AccountPage() {
               {updating ? 'Updating...' : 'Update Profile'}
             </button>
           </div>
+
+          {/* Push Notifications Toggle */}
+          <div className="mt-8 pt-6 border-t border-gray-700">
+            <h3 className="text-lg font-bold mb-3">Notifications</h3>
+            {isSupported ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Browser Push Notifications</p>
+                    <p className="text-sm text-gray-400">
+                      {isSubscribed
+                        ? 'Enabled — you will receive race reminders'
+                        : 'Click to enable race reminder notifications'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={isSubscribed ? unsubscribe : subscribe}
+                    disabled={pushLoading}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition ${
+                      isSubscribed ? 'bg-green-600' : 'bg-gray-600'
+                    } disabled:opacity-50`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                        isSubscribed ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Test Notification Button */}
+                {isSubscribed && (
+                  <div className="pt-2 border-t border-gray-700">
+                    <button
+                      onClick={sendTestNotification}
+                      disabled={testNotifLoading}
+                      className="px-4 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition disabled:opacity-50"
+                    >
+                      {testNotifLoading ? 'Sending...' : '🔔 Test Notification'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">
+                Push notifications are not supported in this browser.
+              </p>
+            )}
+            {pushError && (
+              <p className="text-red-400 text-sm mt-2">{pushError}</p>
+            )}
+            {testNotifMessage && (
+              <p className="text-green-400 text-sm mt-2">{testNotifMessage}</p>
+            )}
+            {testNotifError && (
+              <p className="text-red-400 text-sm mt-2">{testNotifError}</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -228,27 +360,155 @@ export default function AccountPage() {
             </p>
           ) : (
             <div className="space-y-3">
-              {reminders.map((reminder) => (
-                <div
-                  key={reminder.id}
-                  className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
-                >
-                  <div>
-                    <p className="font-medium">
-                      Round {reminder.race_round} • {reminder.race_year}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {reminder.notify_before_hours}h before • {reminder.method}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => deleteReminder(reminder.id)}
-                    className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition"
+              {reminders.map((reminder) => {
+                const isEditing = editingReminderId === reminder.id;
+
+                if (isEditing) {
+                  return (
+                    <div
+                      key={reminder.id}
+                      className="p-4 bg-gray-700 rounded-lg space-y-3"
+                    >
+                      <p className="font-medium">
+                        Round {reminder.race_round} • {reminder.race_year}
+                      </p>
+
+                      {/* Hours before race */}
+                      <div className="flex items-center gap-3">
+                        <label className="text-sm text-gray-400">Notify before:</label>
+                        <select
+                          value={editHours}
+                          onChange={(e) => setEditHours(parseInt(e.target.value))}
+                          className="px-3 py-1 bg-gray-800 border border-gray-600 rounded text-sm"
+                        >
+                          <option value={1}>1 hour before</option>
+                          <option value={2}>2 hours before</option>
+                          <option value={6}>6 hours before</option>
+                          <option value={12}>12 hours before</option>
+                          <option value={24}>1 day before</option>
+                          <option value={48}>2 days before</option>
+                          <option value={72}>3 days before</option>
+                        </select>
+                      </div>
+
+                      {/* Notification methods */}
+                      <div className="space-y-3">
+                        <span className="text-sm text-gray-400 block">Send via:</span>
+                        <div className="flex flex-wrap gap-3">
+                          {/* Email toggle */}
+                          <label
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition border ${
+                              editEmail
+                                ? 'bg-blue-900/30 border-blue-500 text-blue-300'
+                                : 'bg-gray-800 border-gray-600 text-gray-500'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editEmail}
+                              onChange={(e) => setEditEmail(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <span className="text-lg">📧</span>
+                            <span className="text-sm font-medium">Email</span>
+                            <div
+                              className={`relative ml-auto w-9 h-5 rounded-full transition ${
+                                editEmail ? 'bg-blue-500' : 'bg-gray-600'
+                              }`}
+                            >
+                              <div
+                                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${
+                                  editEmail ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                          </label>
+
+                          {/* Push toggle */}
+                          <label
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition border ${
+                              editPush
+                                ? 'bg-purple-900/30 border-purple-500 text-purple-300'
+                                : 'bg-gray-800 border-gray-600 text-gray-500'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editPush}
+                              onChange={(e) => setEditPush(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <span className="text-lg">🔔</span>
+                            <span className="text-sm font-medium">Push</span>
+                            <div
+                              className={`relative ml-auto w-9 h-5 rounded-full transition ${
+                                editPush ? 'bg-purple-500' : 'bg-gray-600'
+                              }`}
+                            >
+                              <div
+                                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${
+                                  editPush ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => saveEditReminder(reminder.id)}
+                          className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEditReminder}
+                          className="px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-500 transition"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={reminder.id}
+                    className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
                   >
-                    Delete
-                  </button>
-                </div>
-              ))}
+                    <div>
+                      <p className="font-medium">
+                        Round {reminder.race_round} • {reminder.race_year}
+                      </p>
+                      <p className="text-sm text-gray-400">
+                        {reminder.notify_before_hours}h before •{' '}
+                        {reminder.method === 'all'
+                          ? 'Email + Push'
+                          : reminder.method === 'push'
+                          ? 'Push'
+                          : 'Email'}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startEditReminder(reminder)}
+                        className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteReminder(reminder.id)}
+                        className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

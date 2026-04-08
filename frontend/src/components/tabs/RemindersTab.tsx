@@ -19,6 +19,15 @@ export default function RemindersTab() {
     }
   }, [isAuthenticated]);
 
+  // Listen for reminder changes from other tabs
+  useEffect(() => {
+    const handler = () => {
+      if (isAuthenticated) loadData();
+    };
+    window.addEventListener('reminders-changed', handler);
+    return () => window.removeEventListener('reminders-changed', handler);
+  }, [isAuthenticated]);
+
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -43,6 +52,15 @@ export default function RemindersTab() {
   };
 
   const addReminder = async (race: RaceScheduleItem) => {
+    // Check if reminder already exists
+    const existing = reminders.find(
+      (r) => r.race_round === race.round && r.race_year === new Date().getFullYear()
+    );
+    if (existing) {
+      setError(`Reminder already set for ${race.race_name}`);
+      return;
+    }
+
     try {
       await remindersApi.addReminder({
         race_round: race.round,
@@ -51,6 +69,7 @@ export default function RemindersTab() {
         method: 'email',
       });
       await loadData();
+      window.dispatchEvent(new Event('reminders-changed'));
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to add reminder');
     }
@@ -60,6 +79,7 @@ export default function RemindersTab() {
     try {
       await remindersApi.deleteReminder(id);
       await loadData();
+      window.dispatchEvent(new Event('reminders-changed'));
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to delete reminder');
     }

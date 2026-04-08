@@ -216,3 +216,25 @@ export const compareApi = {
     );
   },
 };
+
+// Push notification endpoints
+export const pushApi = {
+  getVapidPublicKey: () =>
+    apiFetch<{ public_key: string }>(`${BASE}/api/push/vapid-public-key`),
+  subscribe: (endpoint: string, keys: { p256dh: string; auth: string }) =>
+    apiFetch<{ status: string }>(`${BASE}/api/push/subscribe`, {
+      method: 'POST',
+      body: JSON.stringify({ endpoint, keys }),
+    }),
+  unsubscribe: (endpoint: string, keys: { p256dh: string; auth: string }) =>
+    apiFetch<{ status: string }>(`${BASE}/api/push/unsubscribe`, {
+      method: 'POST',
+      body: JSON.stringify({ endpoint, keys }),
+    }),
+  getSubscriptions: () =>
+    apiFetch<{ subscriptions: { id: number; endpoint: string; created_at: string }[] }>(`${BASE}/api/push/subscriptions`),
+  sendTestNotification: () =>
+    apiFetch<{ status: string; count: number }>(`${BASE}/api/push/test`, {
+      method: 'POST',
+    }),
+};
