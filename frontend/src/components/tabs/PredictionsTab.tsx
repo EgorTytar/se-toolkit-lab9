@@ -10,13 +10,12 @@ import { Link } from 'react-router-dom';
 type PredictionType = 'drivers' | 'constructors';
 
 export default function PredictionsTab() {
-  const [predictionType, setPredictionType] = useState<PredictionType>('drivers');
+  const [predictionType, setPredictionType] = useState<PredictionType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
 
   const fetchPrediction = async (type: PredictionType) => {
-    setPredictionType(type);
     setLoading(true);
     setError(null);
     setPrediction(null);
@@ -25,8 +24,10 @@ export default function PredictionsTab() {
         type === 'drivers'
           ? await predictionsApi.getDriverPrediction()
           : await predictionsApi.getConstructorPrediction();
+      setPredictionType(type);
       setPrediction(data);
     } catch (err: any) {
+      setPredictionType(type);
       setError(err.response?.data?.detail || 'Failed to load prediction');
     } finally {
       setLoading(false);
