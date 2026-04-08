@@ -392,26 +392,67 @@ export default function AccountPage() {
                       </div>
 
                       {/* Notification methods */}
-                      <div className="flex items-center gap-4">
-                        <span className="text-sm text-gray-400">Send via:</span>
-                        <label className="flex items-center gap-1 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={editEmail}
-                            onChange={(e) => setEditEmail(e.target.checked)}
-                            className="rounded border-gray-600 bg-gray-800"
-                          />
-                          Email
-                        </label>
-                        <label className="flex items-center gap-1 text-sm cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={editPush}
-                            onChange={(e) => setEditPush(e.target.checked)}
-                            className="rounded border-gray-600 bg-gray-800"
-                          />
-                          Push Notification
-                        </label>
+                      <div className="space-y-3">
+                        <span className="text-sm text-gray-400 block">Send via:</span>
+                        <div className="flex flex-wrap gap-3">
+                          {/* Email toggle */}
+                          <label
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition border ${
+                              editEmail
+                                ? 'bg-blue-900/30 border-blue-500 text-blue-300'
+                                : 'bg-gray-800 border-gray-600 text-gray-500'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editEmail}
+                              onChange={(e) => setEditEmail(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <span className="text-lg">📧</span>
+                            <span className="text-sm font-medium">Email</span>
+                            <div
+                              className={`relative ml-auto w-9 h-5 rounded-full transition ${
+                                editEmail ? 'bg-blue-500' : 'bg-gray-600'
+                              }`}
+                            >
+                              <div
+                                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${
+                                  editEmail ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                          </label>
+
+                          {/* Push toggle */}
+                          <label
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition border ${
+                              editPush
+                                ? 'bg-purple-900/30 border-purple-500 text-purple-300'
+                                : 'bg-gray-800 border-gray-600 text-gray-500'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editPush}
+                              onChange={(e) => setEditPush(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <span className="text-lg">🔔</span>
+                            <span className="text-sm font-medium">Push</span>
+                            <div
+                              className={`relative ml-auto w-9 h-5 rounded-full transition ${
+                                editPush ? 'bg-purple-500' : 'bg-gray-600'
+                              }`}
+                            >
+                              <div
+                                className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow ${
+                                  editPush ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </div>
+                          </label>
+                        </div>
                       </div>
 
                       {/* Action buttons */}

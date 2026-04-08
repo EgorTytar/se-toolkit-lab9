@@ -8,7 +8,7 @@ class ReminderCreate(BaseModel):
     race_round: int = Field(..., ge=1, le=30)
     race_year: int = Field(..., ge=1950, le=2100)
     notify_before_hours: int = Field(default=2, ge=1, le=168)
-    method: str = Field(default="email", pattern="^(email|push)$")
+    method: str = Field(default="email", pattern="^(email|push|all)$")
 
 
 class ReminderResponse(BaseModel):
@@ -27,3 +27,4 @@ class ReminderUpdate(BaseModel):
     """Schema for updating a reminder."""
     notify_before_hours: int | None = Field(None, ge=1, le=168)
     enabled: bool | None = None
+    method: str | None = Field(None, pattern="^(email|push|all)$")
