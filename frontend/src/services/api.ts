@@ -242,8 +242,8 @@ export const pushApi = {
 
 // Prediction endpoints
 export const predictionsApi = {
-  getDriverPrediction: (year: number) =>
-    apiFetch<PredictionResponse>(`${BASE}/api/predictions/drivers?year=${year}`),
-  getConstructorPrediction: (year: number) =>
-    apiFetch<PredictionResponse>(`${BASE}/api/predictions/constructors?year=${year}`),
+  getDriverPrediction: () =>
+    apiFetch<PredictionResponse>(`${BASE}/api/predictions/drivers`),
+  getConstructorPrediction: () =>
+    apiFetch<PredictionResponse>(`${BASE}/api/predictions/constructors`),
 };

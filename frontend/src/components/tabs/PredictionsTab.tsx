@@ -10,22 +10,21 @@ import { Link } from 'react-router-dom';
 type PredictionType = 'drivers' | 'constructors';
 
 export default function PredictionsTab() {
-  const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
   const [predictionType, setPredictionType] = useState<PredictionType>('drivers');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
 
-  const fetchPrediction = async (type: PredictionType, yr: number) => {
+  const fetchPrediction = async (type: PredictionType) => {
+    setPredictionType(type);
     setLoading(true);
     setError(null);
     setPrediction(null);
     try {
       const data =
         type === 'drivers'
-          ? await predictionsApi.getDriverPrediction(yr)
-          : await predictionsApi.getConstructorPrediction(yr);
+          ? await predictionsApi.getDriverPrediction()
+          : await predictionsApi.getConstructorPrediction();
       setPrediction(data);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load prediction');
@@ -34,64 +33,48 @@ export default function PredictionsTab() {
     }
   };
 
-  const handleTypeChange = (type: PredictionType) => {
-    setPredictionType(type);
-    fetchPrediction(type, year);
-  };
-
-  const handlePredict = () => {
-    fetchPrediction(predictionType, year);
-  };
-
   const champion = prediction?.predicted_champion;
   const confidencePct = champion ? Math.round(champion.confidence * 100) : 0;
 
   return (
     <div className="space-y-6">
-      {/* Controls */}
-      <div className="flex flex-wrap items-center gap-4">
-        <input
-          type="number"
-          value={year}
-          onChange={(e) => setYear(parseInt(e.target.value))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handlePredict();
-          }}
-          className="px-4 py-2 border border-gray-600 rounded-md w-32 bg-gray-800 text-gray-100"
-          placeholder="Year"
-          min={1950}
-          max={currentYear}
-        />
-
-        <div className="flex space-x-2">
-          <button
-            onClick={() => handleTypeChange('drivers')}
-            className={`px-4 py-2 rounded-md transition ${
-              predictionType === 'drivers'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-700 hover:bg-gray-600'
-            }`}
-          >
-            Drivers
-          </button>
-          <button
-            onClick={() => handleTypeChange('constructors')}
-            className={`px-4 py-2 rounded-md transition ${
-              predictionType === 'constructors'
-                ? 'bg-red-600 text-white'
-                : 'bg-gray-700 hover:bg-gray-600'
-            }`}
-          >
-            Constructors
-          </button>
-        </div>
-
+      {/* Type Selector */}
+      <div className="flex space-x-2">
         <button
-          onClick={handlePredict}
+          onClick={() => fetchPrediction('drivers')}
           disabled={loading}
-          className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition"
+          className={`px-6 py-3 rounded-lg font-medium transition ${
+            predictionType === 'drivers'
+              ? 'bg-red-600 text-white shadow-lg'
+              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+          } disabled:opacity-50`}
         >
-          {loading ? 'Generating...' : 'Predict Championship'}
+          {loading && predictionType === 'drivers' ? (
+            <span className="flex items-center gap-2">
+              <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+              Analyzing Drivers...
+            </span>
+          ) : (
+            '🏎️ Drivers Championship'
+          )}
+        </button>
+        <button
+          onClick={() => fetchPrediction('constructors')}
+          disabled={loading}
+          className={`px-6 py-3 rounded-lg font-medium transition ${
+            predictionType === 'constructors'
+              ? 'bg-red-600 text-white shadow-lg'
+              : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+          } disabled:opacity-50`}
+        >
+          {loading && predictionType === 'constructors' ? (
+            <span className="flex items-center gap-2">
+              <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
+              Analyzing Teams...
+            </span>
+          ) : (
+            '🏢 Constructors Championship'
+          )}
         </button>
       </div>
 
@@ -102,12 +85,16 @@ export default function PredictionsTab() {
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <div className="bg-gray-800 rounded-lg p-8 text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-500 mb-4"></div>
-          <p className="text-gray-400">
-            AI is analyzing current form and remaining races...
+      {/* Empty State */}
+      {!loading && !prediction && !error && (
+        <div className="bg-gray-800 rounded-lg p-12 text-center">
+          <span className="text-5xl mb-4 block">🔮</span>
+          <h3 className="text-xl font-semibold text-gray-100 mb-2">
+            Championship Predictor
+          </h3>
+          <p className="text-gray-400 max-w-md mx-auto">
+            Select Drivers or Constructors above to get AI-powered predictions
+            for the {new Date().getFullYear()} season championship.
           </p>
         </div>
       )}
@@ -115,57 +102,53 @@ export default function PredictionsTab() {
       {/* Prediction Results */}
       {prediction && !loading && (
         <div className="space-y-6">
-          {/* Season Info */}
-          <div className="flex items-center gap-4 text-sm text-gray-400">
+          {/* Season Info Bar */}
+          <div className="flex items-center gap-4 text-sm text-gray-400 bg-gray-800 rounded-lg px-4 py-3">
             <span>
               Season: <strong className="text-gray-200">{prediction.season}</strong>
             </span>
-            <span>•</span>
+            <span className="text-gray-600">|</span>
             <span>
-              Races completed: <strong className="text-gray-200">{prediction.races_completed}</strong>
-            </span>
-            <span>•</span>
-            <span>
-              Races remaining: <strong className="text-gray-200">{prediction.races_remaining}</strong>
+              Races: <strong className="text-green-400">{prediction.races_completed}</strong> / {prediction.races_completed + prediction.races_remaining} completed
             </span>
           </div>
 
-          {/* Predicted Champion */}
+          {/* Predicted Champion Card */}
           {champion && (
-            <div className="bg-gradient-to-r from-yellow-900/30 to-gray-800 border border-yellow-700/50 rounded-lg p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-3xl">🏆</span>
-                <div>
-                  <h3 className="text-xl font-bold text-yellow-400">Predicted Champion</h3>
-                  <p className="text-sm text-gray-400">
-                    {predictionType === 'drivers' ? 'Driver' : 'Constructor'} Championship
-                  </p>
+            <div className="bg-gradient-to-r from-yellow-900/30 via-gray-800 to-gray-800 border border-yellow-700/50 rounded-xl p-6 shadow-lg">
+              <div className="flex items-start gap-4 mb-4">
+                <span className="text-4xl">🏆</span>
+                <div className="flex-1">
+                  <div className="flex items-baseline justify-between">
+                    <div>
+                      <h3 className="text-sm font-medium text-yellow-400 uppercase tracking-wide mb-1">Predicted Champion</h3>
+                      <h2 className="text-2xl font-bold text-gray-100">{champion.name}</h2>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-3xl font-bold text-yellow-400">{confidencePct}%</div>
+                      <div className="text-xs text-gray-400">confidence</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-baseline gap-4 mb-2">
-                <h2 className="text-2xl font-bold text-gray-100">
-                  {champion.name}
-                </h2>
-                <span className="text-lg font-semibold text-yellow-400">{confidencePct}% confidence</span>
-              </div>
-
-              <div className="flex items-center gap-6 text-sm">
-                <div>
-                  <span className="text-gray-400">Current points: </span>
-                  <span className="font-semibold text-gray-200">{champion.current_points}</span>
+              {/* Stats Row */}
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div className="bg-gray-900/50 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 uppercase">Current Points</div>
+                  <div className="text-xl font-bold text-gray-200">{champion.current_points}</div>
                 </div>
-                <div>
-                  <span className="text-gray-400">Predicted final: </span>
-                  <span className="font-semibold text-green-400">{champion.predicted_final_points}</span>
+                <div className="bg-gray-900/50 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 uppercase">Predicted Final</div>
+                  <div className="text-xl font-bold text-green-400">{champion.predicted_final_points}</div>
                 </div>
               </div>
 
               {/* Confidence Bar */}
               <div className="mt-4">
-                <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-500"
+                    className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-700"
                     style={{ width: `${confidencePct}%` }}
                   ></div>
                 </div>
@@ -173,11 +156,11 @@ export default function PredictionsTab() {
             </div>
           )}
 
-          {/* Top Contenders */}
+          {/* Top Contenders Table */}
           {prediction.top_contenders && prediction.top_contenders.length > 0 && (
             <div className="bg-gray-800 rounded-lg shadow overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-100">Top Contenders</h3>
+                <h3 className="text-lg font-semibold text-gray-100">📊 Top Contenders</h3>
               </div>
               <table className="min-w-full divide-y divide-gray-700">
                 <thead className="bg-gray-700">
@@ -200,9 +183,9 @@ export default function PredictionsTab() {
                 </thead>
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
                   {prediction.top_contenders.map((contender, idx) => (
-                    <tr key={contender.id} className="hover:bg-gray-700">
+                    <tr key={contender.id} className={`hover:bg-gray-700 ${idx === 0 ? 'bg-yellow-900/10' : ''}`}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
-                        {idx + 1}
+                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-100">
                         {predictionType === 'drivers' ? (
@@ -225,8 +208,10 @@ export default function PredictionsTab() {
                         {contender.predicted_points}
                       </td>
                       {contender.chance_pct !== undefined && (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                          {Math.round(contender.chance_pct * 100)}%
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className="text-yellow-400 font-medium">
+                            {Math.round(contender.chance_pct * 100)}%
+                          </span>
                         </td>
                       )}
                     </tr>
@@ -238,19 +223,22 @@ export default function PredictionsTab() {
 
           {/* AI Reasoning */}
           {prediction.ai_reasoning && (
-            <div className="bg-gray-800 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-100 mb-3">🤖 AI Analysis</h3>
+            <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-100 mb-3 flex items-center gap-2">
+                🤖 AI Analysis
+              </h3>
               <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
                 {prediction.ai_reasoning}
               </p>
             </div>
           )}
 
-          {/* Form Analysis */}
+          {/* Form Analysis Grid */}
           {prediction.form_analysis && Object.keys(prediction.form_analysis).length > 0 && (
             <div className="bg-gray-800 rounded-lg shadow overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-100">📊 Form Analysis (Last 5 Races)</h3>
+                <h3 className="text-lg font-semibold text-gray-100">📈 Season Form Analysis</h3>
+                <p className="text-sm text-gray-400 mt-1">Based on all {prediction.races_completed} completed races</p>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Object.entries(prediction.form_analysis).map(([id, form]) => {
@@ -260,7 +248,7 @@ export default function PredictionsTab() {
                   return (
                     <div
                       key={id}
-                      className="bg-gray-700/50 rounded-lg p-4 space-y-2"
+                      className="bg-gray-700/50 rounded-lg p-4 space-y-3 border border-gray-600/50"
                     >
                       <h4 className="font-semibold text-gray-100">
                         {predictionType === 'drivers' ? (
@@ -277,8 +265,16 @@ export default function PredictionsTab() {
                       {predictionType === 'drivers' ? (
                         <>
                           <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Races</span>
+                            <span className="text-gray-200 font-medium">{driverForm.races_analyzed}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
                             <span className="text-gray-400">Avg Points</span>
                             <span className="text-gray-200 font-medium">{driverForm.avg_points}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Total Points</span>
+                            <span className="text-gray-200 font-medium">{driverForm.total_points}</span>
                           </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-400">Wins</span>
@@ -288,17 +284,27 @@ export default function PredictionsTab() {
                             <span className="text-gray-400">Podiums</span>
                             <span className="text-gray-200 font-medium">{driverForm.podiums}</span>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-400">Win Rate</span>
-                            <span className="text-gray-200 font-medium">{driverForm.win_pct}%</span>
-                          </div>
-                          <div className="flex justify-between text-sm">
-                            <span className="text-gray-400">DNF Rate</span>
-                            <span className="text-gray-200 font-medium">{driverForm.dnf_pct}%</span>
+                          <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-600/50">
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500">Win%</div>
+                              <div className="text-sm font-medium text-green-400">{driverForm.win_pct}%</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500">Pod%</div>
+                              <div className="text-sm font-medium text-yellow-400">{driverForm.podium_pct}%</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xs text-gray-500">DNF%</div>
+                              <div className="text-sm font-medium text-red-400">{driverForm.dnf_pct}%</div>
+                            </div>
                           </div>
                         </>
                       ) : (
                         <>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Races</span>
+                            <span className="text-gray-200 font-medium">{constructorForm.races_analyzed}</span>
+                          </div>
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-400">Avg Points/Race</span>
                             <span className="text-gray-200 font-medium">
@@ -306,7 +312,7 @@ export default function PredictionsTab() {
                             </span>
                           </div>
                           <div className="flex justify-between text-sm">
-                            <span className="text-gray-400">Recent Total</span>
+                            <span className="text-gray-400">Total Points</span>
                             <span className="text-gray-200 font-medium">
                               {constructorForm.total_points_recent}
                             </span>
@@ -319,20 +325,6 @@ export default function PredictionsTab() {
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && !prediction && !error && (
-        <div className="bg-gray-800 rounded-lg p-12 text-center">
-          <span className="text-5xl mb-4 block">🏎️</span>
-          <h3 className="text-xl font-semibold text-gray-100 mb-2">
-            Championship Predictor
-          </h3>
-          <p className="text-gray-400 max-w-md mx-auto">
-            Select a season and click &quot;Predict Championship&quot; to get AI-powered predictions
-            with form analysis and championship odds.
-          </p>
         </div>
       )}
     </div>

@@ -52,11 +52,9 @@ class PredictionService:
         self.ergast = ErgastClient()
         self.ai = AISummarizer()
 
-    async def predict_driver_champion(self, year: int) -> dict:
-        """Generate driver championship prediction for a season."""
-        current_year = datetime.datetime.now().year
-        if year < 1950 or year > current_year:
-            return self._error_response(year, "drivers")
+    async def predict_driver_champion(self) -> dict:
+        """Generate driver championship prediction for the current season."""
+        year = datetime.datetime.now().year
 
         # Fetch current standings
         try:
@@ -79,7 +77,7 @@ class PredictionService:
         races_completed = self._count_completed_races(schedule, year)
         races_remaining = len(schedule) - races_completed
 
-        # Calculate form for top drivers
+        # Calculate form for top drivers (ALL completed races, not just last N)
         top_drivers = standings[:5]  # Top 5 in championship
         form_analysis = {}
         for driver in top_drivers:
@@ -126,11 +124,9 @@ class PredictionService:
         await self.ergast.close()
         return result
 
-    async def predict_constructor_champion(self, year: int) -> dict:
-        """Generate constructor championship prediction for a season."""
-        current_year = datetime.datetime.now().year
-        if year < 1950 or year > current_year:
-            return self._error_response(year, "constructors")
+    async def predict_constructor_champion(self) -> dict:
+        """Generate constructor championship prediction for the current season."""
+        year = datetime.datetime.now().year
 
         # Fetch current standings
         try:
@@ -152,7 +148,7 @@ class PredictionService:
         races_completed = self._count_completed_races(schedule, year)
         races_remaining = len(schedule) - races_completed
 
-        # Calculate form for top constructors
+        # Calculate form for top constructors (ALL completed races)
         top_constructors = standings[:5]
         form_analysis = {}
         for constructor in top_constructors:
@@ -201,8 +197,8 @@ class PredictionService:
 
     # ── Form Analysis ───────────────────────────────────────────────────
 
-    async def _calculate_driver_form(self, driver_ref: str, year: int, races_completed: int, last_n: int = 5) -> dict:
-        """Calculate a driver's form over their last N races."""
+    async def _calculate_driver_form(self, driver_ref: str, year: int, races_completed: int) -> dict:
+        """Calculate a driver's form over ALL completed races this season."""
         try:
             season_results = await self.ergast.get_driver_season_results(driver_ref, year)
         except Exception:
@@ -211,8 +207,8 @@ class PredictionService:
         if not season_results:
             return self._empty_form()
 
-        # Take the last N completed races
-        recent = [r for r in season_results if r.get("position") != ""][ -last_n:]
+        # Use ALL completed races (not just last N)
+        recent = [r for r in season_results if r.get("position") != ""]
 
         if not recent:
             return self._empty_form()
@@ -235,14 +231,14 @@ class PredictionService:
             "dnf_pct": round(dnfs / len(recent) * 100, 1),
         }
 
-    async def _calculate_constructor_form(self, constructor_ref: str, year: int, races_completed: int, last_n: int = 5) -> dict:
-        """Calculate a constructor's form over their last N races."""
+    async def _calculate_constructor_form(self, constructor_ref: str, year: int, races_completed: int) -> dict:
+        """Calculate a constructor's form over ALL completed races this season."""
         try:
             season_results = await self.ergast.get_constructor_all_results(constructor_ref)
         except Exception:
             return self._empty_form()
 
-        # Filter to this year and take most recent
+        # Filter to this year
         year_results = [r for r in season_results if r.get("season") == year]
 
         if not year_results:
@@ -257,19 +253,18 @@ class PredictionService:
                 race_points[round_num] = 0
             race_points[round_num] += pts
 
-        # Sort by round and take last N
+        # Use ALL completed rounds (not just last N)
         sorted_rounds = sorted(race_points.keys())
-        recent_rounds = sorted_rounds[-last_n:]
 
-        if not recent_rounds:
+        if not sorted_rounds:
             return self._empty_form()
 
-        recent_points = [race_points[r] for r in recent_rounds]
+        recent_points = [race_points[r] for r in sorted_rounds]
         total_points = sum(recent_points)
         avg_points = total_points / len(recent_points)
 
         return {
-            "races_analyzed": len(recent_rounds),
+            "races_analyzed": len(sorted_rounds),
             "avg_points_per_race": round(avg_points, 1),
             "total_points_recent": round(total_points, 1),
         }

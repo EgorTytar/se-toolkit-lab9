@@ -1,8 +1,8 @@
-"""Championship prediction endpoints."""
+"""Championship prediction endpoints (current season only)."""
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 
 from services.prediction_service import PredictionService
 
@@ -12,27 +12,22 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/drivers")
-async def predict_driver_championship(
-    year: int = Query(..., description="Season year to predict"),
-) -> dict:
-    """Predict the driver championship outcome for a season.
-
-    Query param:
-        year — Season year (e.g. 2025)
+async def predict_driver_championship() -> dict:
+    """Predict the driver championship outcome for the current season.
 
     Returns:
         - Predicted champion with confidence level
         - Top contenders list
-        - Form analysis (last 5 races)
+        - Form analysis (all completed races this season)
         - AI reasoning
         - Races completed/remaining
     """
     service = PredictionService()
 
     try:
-        result = await service.predict_driver_champion(year)
+        result = await service.predict_driver_champion()
     except Exception as e:
-        logger.error(f"Prediction error for driver championship {year}: {e}")
+        logger.error(f"Prediction error for driver championship: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate prediction: {e}"
@@ -45,27 +40,22 @@ async def predict_driver_championship(
 
 
 @router.get("/constructors")
-async def predict_constructor_championship(
-    year: int = Query(..., description="Season year to predict"),
-) -> dict:
-    """Predict the constructor championship outcome for a season.
-
-    Query param:
-        year — Season year (e.g. 2025)
+async def predict_constructor_championship() -> dict:
+    """Predict the constructor championship outcome for the current season.
 
     Returns:
         - Predicted champion with confidence level
         - Top contenders list
-        - Form analysis (last 5 races)
+        - Form analysis (all completed races this season)
         - AI reasoning
         - Races completed/remaining
     """
     service = PredictionService()
 
     try:
-        result = await service.predict_constructor_champion(year)
+        result = await service.predict_constructor_champion()
     except Exception as e:
-        logger.error(f"Prediction error for constructor championship {year}: {e}")
+        logger.error(f"Prediction error for constructor championship: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to generate prediction: {e}"

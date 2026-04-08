@@ -61,9 +61,21 @@ def setup_prediction_mocks(mock_ergast_client, mock_ai_summarizer):
 @pytest.fixture
 def mock_prediction_service(mock_ergast_client, mock_ai_summarizer):
     """Patch PredictionService to use mocked clients."""
+    # Override standings to return data for current year
+    mock_ergast_client.get_driver_standings = AsyncMock(return_value=list(SAMPLE_DRIVER_STANDINGS))
+    mock_ergast_client.get_constructor_standings = AsyncMock(return_value=list(SAMPLE_CONSTRUCTOR_STANDINGS))
+    mock_ergast_client.get_season_schedule = AsyncMock(return_value=list(SAMPLE_SCHEDULE))
+    mock_ergast_client.get_driver_season_results = AsyncMock(return_value=SAMPLE_SEASON_RESULTS)
+    mock_ergast_client.get_constructor_all_results = AsyncMock(return_value=SAMPLE_CONSTRUCTOR_RESULTS)
+    mock_ergast_client.close = AsyncMock(return_value=None)
+    mock_ergast_client.get_driver_info = AsyncMock(return_value={"driver_id": "max_verstappen", "full_name": "Max Verstappen"})
+
+    # AI summarizer mocks
+    mock_ai_summarizer.is_available = True
+    mock_ai_summarizer.chat_response = AsyncMock(return_value=SAMPLE_AI_PREDICTION_RESPONSE)
+
     with patch('services.prediction_service.ErgastClient', return_value=mock_ergast_client), \
          patch('services.prediction_service.AISummarizer', return_value=mock_ai_summarizer):
-        setup_prediction_mocks(mock_ergast_client, mock_ai_summarizer)
         yield
 
 
@@ -71,11 +83,11 @@ def mock_prediction_service(mock_ergast_client, mock_ai_summarizer):
 
 def test_predict_driver_championship_returns_prediction(test_app, mock_prediction_service):
     """Driver prediction endpoint returns structured prediction."""
-    response = test_app.get("/api/predictions/drivers?year=2024")
+    response = test_app.get("/api/predictions/drivers")
     assert response.status_code == 200
     data = response.json()
 
-    assert data["season"] == 2024
+    assert data["season"] == datetime.now().year
     assert data["type"] == "drivers"
     assert "predicted_champion" in data
     assert "top_contenders" in data
@@ -87,7 +99,7 @@ def test_predict_driver_championship_returns_prediction(test_app, mock_predictio
 
 def test_predict_driver_champion_structure(test_app, mock_prediction_service):
     """Driver prediction champion has correct structure."""
-    response = test_app.get("/api/predictions/drivers?year=2024")
+    response = test_app.get("/api/predictions/drivers")
     data = response.json()
 
     champion = data["predicted_champion"]
@@ -100,11 +112,11 @@ def test_predict_driver_champion_structure(test_app, mock_prediction_service):
 
 def test_predict_constructor_championship_returns_prediction(test_app, mock_prediction_service):
     """Constructor prediction endpoint returns structured prediction."""
-    response = test_app.get("/api/predictions/constructors?year=2024")
+    response = test_app.get("/api/predictions/constructors")
     assert response.status_code == 200
     data = response.json()
 
-    assert data["season"] == 2024
+    assert data["season"] == datetime.now().year
     assert data["type"] == "constructors"
     assert "predicted_champion" in data
     assert "top_contenders" in data
@@ -113,7 +125,7 @@ def test_predict_constructor_championship_returns_prediction(test_app, mock_pred
 
 def test_predict_constructor_champion_structure(test_app, mock_prediction_service):
     """Constructor prediction champion has correct structure."""
-    response = test_app.get("/api/predictions/constructors?year=2024")
+    response = test_app.get("/api/predictions/constructors")
     data = response.json()
 
     champion = data["predicted_champion"]
@@ -126,30 +138,18 @@ def test_predict_constructor_champion_structure(test_app, mock_prediction_servic
 
 # ── Edge case tests ──
 
-def test_predict_future_year_returns_error(test_app, mock_ergast_client, mock_ai_summarizer, mock_prediction_service):
-    """Future year prediction returns error."""
-    mock_ergast_client.get_driver_standings = AsyncMock(side_effect=ValueError("No data"))
-
-    response = test_app.get("/api/predictions/drivers?year=2099")
-    assert response.status_code in [400, 404, 500]
-
-
-def test_predict_past_year_before_1950_returns_error(test_app, mock_prediction_service):
-    """Year before 1950 returns error."""
-    response = test_app.get("/api/predictions/drivers?year=1940")
-    assert response.status_code in [400, 404, 500]
-
-
-def test_predict_missing_year_parameter(test_app):
-    """Missing year parameter returns 422 validation error."""
+def test_predict_driver_no_year_parameter(test_app, mock_prediction_service):
+    """Driver prediction does not require year parameter (current year only)."""
     response = test_app.get("/api/predictions/drivers")
-    assert response.status_code == 422
+    # Should succeed without year parameter
+    assert response.status_code == 200
 
 
-def test_predict_invalid_year_format(test_app):
-    """Invalid year format returns 422 validation error."""
-    response = test_app.get("/api/predictions/drivers?year=abc")
-    assert response.status_code == 422
+def test_predict_constructor_no_year_parameter(test_app, mock_prediction_service):
+    """Constructor prediction does not require year parameter (current year only)."""
+    response = test_app.get("/api/predictions/constructors")
+    # Should succeed without year parameter
+    assert response.status_code == 200
 
 
 # ── AI unavailable fallback tests ──
@@ -158,12 +158,12 @@ def test_prediction_works_without_ai(test_app, mock_ergast_client, mock_ai_summa
     """Prediction works with statistical fallback when AI is unavailable."""
     mock_ai_summarizer.is_available = False
 
-    response = test_app.get("/api/predictions/drivers?year=2024")
+    response = test_app.get("/api/predictions/drivers")
     assert response.status_code == 200
     data = response.json()
 
     # Should still return prediction with statistical data
-    assert data["season"] == 2024
+    assert data["season"] == datetime.now().year
     assert "predicted_champion" in data
 
 
@@ -171,7 +171,7 @@ def test_prediction_works_without_ai(test_app, mock_ergast_client, mock_ai_summa
 
 def test_form_analysis_included_in_prediction(test_app, mock_prediction_service):
     """Form analysis is included in prediction response."""
-    response = test_app.get("/api/predictions/drivers?year=2024")
+    response = test_app.get("/api/predictions/drivers")
     data = response.json()
 
     form = data.get("form_analysis", {})
@@ -183,7 +183,7 @@ def test_form_analysis_included_in_prediction(test_app, mock_prediction_service)
 
 def test_races_completed_and_remaining(test_app, mock_prediction_service):
     """Prediction includes races completed and remaining counts."""
-    response = test_app.get("/api/predictions/drivers?year=2024")
+    response = test_app.get("/api/predictions/drivers")
     data = response.json()
 
     assert "races_completed" in data
