@@ -18,8 +18,6 @@ AI-powered Formula 1 dashboard with real-time race data, standings, predictions,
 **AI Chat Assistant**
 ![Chat](docs/screenshots/chat.png)
 
-> **Note:** Screenshots directory should contain actual images before submission. Run the app locally and capture relevant screenshots.
-
 ### Product Context
 
 **End Users:** Formula 1 fans who want quick, engaging race recaps and championship analysis without browsing multiple websites or watching full race replays.
