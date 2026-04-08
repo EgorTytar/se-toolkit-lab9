@@ -41,9 +41,10 @@ F1 Race Assistant is a full-stack web application that provides Formula 1 fans w
 - **Favorites** — save favorite drivers
 - **Reminders** — set notifications for upcoming races (email + scheduler)
 - **⚔️ Driver Comparison** — head-to-head career stats + race-by-race H2H record
+- **🔮 Championship Predictions** — AI-powered predictions with form analysis, confidence levels, and contender odds
 
 **Version:** V2 (Full F1 Assistant)
-**Tests:** 73 passing (38 unit + 7 retrospective + 28 e2e)
+**Tests:** 64 passing (9 prediction + 38 unit + 7 retrospective + 10 other)
 
 ---
 
@@ -54,10 +55,10 @@ F1 Race Assistant is a full-stack web application that provides Formula 1 fans w
 │                        User Browser                          │
 │  ┌───────────────────────────────────────────────────────┐   │
 │  │              React SPA (Vite + TypeScript)             │   │
-│  │  ┌────────┬─────────┬──────────┬────────┬──────────┬─────────┐ │   │
-│  │  │Latest  │Browse   │Standings │Remind  │Retrospect│Compare  │ │   │
-│  │  │Race    │Seasons  │          │        │ive       │         │ │   │
-│  │  └────────┴─────────┴──────────┴────────┴──────────┴─────────┘ │   │
+│  │  ┌────────┬─────────┬──────────┬────────┬──────────┬─────────┬──────────────┐ │   │
+│  │  │Latest  │Browse   │Standings │Remind  │Retrospect│Compare  │Predictions   │ │   │
+│  │  │Race    │Seasons  │          │        │ive       │         │              │ │   │
+│  │  └────────┴─────────┴──────────┴────────┴──────────┴─────────┴──────────────┘ │   │
 │  └──────────────────────┬────────────────────────────────┘   │
 └─────────────────────────┼────────────────────────────────────┘
                           │ HTTP/JSON
@@ -65,10 +66,10 @@ F1 Race Assistant is a full-stack web application that provides Formula 1 fans w
 │                    Docker Container                           │
 │  ┌─────────────────────┴──────────────────────────────────┐   │
 │  │           FastAPI Backend (Python 3.12)                │   │
-│  │  ┌─────────┬──────────┬────────┬────────┬──────────┬─────────┐ │   │
-│  │  │Race API │Standings │Driver  │Chat    │Retro     │Compare  │ │   │
-│  │  │Endpoints│Endpoints │Endpoint│Endpoint│Endpoint  │Endpoint │ │   │
-│  │  └─────────┴──────────┴────────┴────────┴──────────┴─────────┘ │   │
+│  │  ┌─────────┬──────────┬────────┬────────┬──────────┬─────────┬──────────────┐ │   │
+│  │  │Race API │Standings │Driver  │Chat    │Retro     │Compare  │Predictions   │ │   │
+│  │  │Endpoints│Endpoints │Endpoint│Endpoint│Endpoint  │Endpoint │Endpoint      │ │   │
+│  │  └─────────┴──────────┴────────┴────────┴──────────┴─────────┴──────────────┘ │   │
 │  │  ┌──────────────┬──────────────┬──────────────────┐   │   │
 │  │  │Ergast Client │AI Summarizer │Cache Service     │   │   │
 │  │  └──────────────┴──────────────┴──────────────────┘   │   │
@@ -132,7 +133,8 @@ lab9/
 │   ├── data_parser.py         # Raw race data → AI prompt formatter
 │   ├── auth.py                # Password hashing (bcrypt), JWT create/verify
 │   ├── scheduler.py           # APScheduler: hourly reminder checks, email sending
-│   └── cache_service.py       # AI response caching with TTL
+│   ├── cache_service.py       # AI response caching with TTL
+│   └── prediction_service.py  # Championship prediction engine (form + stats + AI)
 │
 ├── endpoints/                 # API route handlers
 │   ├── auth.py                # POST /api/auth/register, /api/auth/login
@@ -141,7 +143,9 @@ lab9/
 │   ├── favorites.py           # GET/POST/DELETE /api/users/me/favorites/*
 │   ├── chat.py                # Chat sessions + AI response generation
 │   ├── retrospective.py       # GET /api/seasons/{year}/retrospective
-│   └── compare.py             # GET /api/compare/drivers — H2H comparison
+│   ├── compare.py             # GET /api/compare/drivers — H2H comparison
+│   ├── push_notifications.py  # GET/POST /api/push/* — Web push subscriptions
+│   └── predictions.py         # GET /api/predictions/* — Championship predictions
 │
 ├── models/                    # Pydantic schemas
 │   ├── schemas.py             # AIResponse, RaceSummaryResponse, ErrorResponse
@@ -171,6 +175,7 @@ lab9/
 │       │       ├── RemindersTab.tsx
 │       │       ├── RetrospectiveTab.tsx
 │       │       ├── CompareTab.tsx       # ⚔️ Driver H2H comparison
+│       │       ├── PredictionsTab.tsx   # 🔮 Championship predictions
 │       │       └── ChatTab.tsx
 │       └── pages/              # Route-level pages
 │           ├── HomePage.tsx    # Main dashboard with tabs
@@ -189,6 +194,8 @@ lab9/
 │   ├── test_e2e.py            # 28+ e2e tests against running server
 │   ├── test_retrospective.py  # 7 retrospective endpoint tests
 │   ├── test_compare.py        # 8 comparison endpoint unit tests
+│   ├── test_predictions.py    # 9 championship prediction tests
+│   ├── test_push_notifications.py  # 5 push notification tests
 │   ├── test_data_parser.py    # 4 data parser tests
 │   └── test_ai_assistant.py   # 5 AI fallback tests
 │
@@ -243,6 +250,8 @@ lifespan(app):
 | GET | `/api/circuits/{circuit_id}` | Circuit info + recent results | ❌ |
 | GET | `/api/compare/drivers?a=X&b=Y` | Driver head-to-head comparison | ❌ |
 | GET | `/api/compare/drivers/search?q=ham` | Search drivers by name/code | ❌ |
+| GET | `/api/predictions/drivers` | AI driver championship prediction | ❌ |
+| GET | `/api/predictions/constructors` | AI constructor championship prediction | ❌ |
 
 ### Authenticated Endpoints (JWT required)
 
@@ -315,6 +324,7 @@ Configured via `config.py`:
 Cache TTLs:
 - Race summaries: **24 hours**
 - Retrospectives: **12 hours**
+- Predictions: **6 hours**
 - Default: **6 hours**
 
 ### `auth.py` — Authentication
@@ -333,6 +343,63 @@ APScheduler checks reminders every hour and sends email notifications for upcomi
 ### `data_parser.py` — Prompt Formatter
 
 Converts raw Ergast API race data into formatted text for AI prompts.
+
+### `prediction_service.py` — Championship Prediction Engine
+
+Generates AI-powered championship predictions for the current season:
+
+| Method | Purpose |
+|--------|---------|
+| `predict_driver_champion()` | Predict driver championship winner with confidence |
+| `predict_constructor_champion()` | Predict constructor championship winner with confidence |
+| `_calculate_driver_form()` | Analyze ALL completed races this season for a driver |
+| `_calculate_constructor_form()` | Analyze ALL completed races this season for a constructor |
+| `_predict_driver_points()` | Statistical projection based on current points pace |
+| `_predict_constructor_points()` | Statistical projection based on current points pace |
+| `_get_ai_prediction()` | AI synthesis combining stats + form + standings |
+
+**Prediction flow:**
+1. Fetch current standings and season schedule
+2. Calculate form for top 5 drivers/constructors (all completed races)
+3. Generate statistical prediction based on points pace
+4. AI synthesizes standings + form + remaining races → final prediction
+5. Result cached for 6 hours
+
+**Response structure:**
+```json
+{
+  "season": 2026,
+  "type": "drivers",
+  "races_completed": 12,
+  "races_remaining": 12,
+  "predicted_champion": {
+    "driver_id": "max_verstappen",
+    "name": "Max Verstappen",
+    "current_points": 250,
+    "predicted_final_points": 480,
+    "confidence": 0.85
+  },
+  "top_contenders": [
+    {"id": "max_verstappen", "name": "Max Verstappen", "predicted_points": 480, "chance_pct": 0.85},
+    {"id": "lewis_hamilton", "name": "Lewis Hamilton", "predicted_points": 390, "chance_pct": 0.12},
+    {"id": "lando_norris", "name": "Lando Norris", "predicted_points": 350, "chance_pct": 0.03}
+  ],
+  "form_analysis": {
+    "max_verstappen": {
+      "races_analyzed": 12,
+      "avg_points": 20.8,
+      "total_points": 250,
+      "wins": 7,
+      "podiums": 10,
+      "dnfs": 1,
+      "win_pct": 58.3,
+      "podium_pct": 83.3,
+      "dnf_pct": 8.3
+    }
+  },
+  "ai_reasoning": "Based on current form and the points gap to second place..."
+}
+```
 
 ---
 
@@ -409,6 +476,7 @@ Built into `static/dist/`, served by FastAPI's `StaticFiles`.
 | Reminders | `RemindersTab` | Upcoming races + add reminders |
 | 📖 Retrospective | `RetrospectiveTab` | Year selector → AI season narrative |
 | ⚔️ Compare | `CompareTab` | Driver H2H: career stats + race-by-race table |
+| 🔮 Predictions | `PredictionsTab` | Championship predictions with form analysis |
 | 🤖 AI Assistant | `ChatTab` | Free-form F1 chat with history |
 
 ### Key Components
@@ -518,6 +586,236 @@ Request → Check cache → HIT: return cached → DONE
 
 ---
 
+## 13b. Championship Predictions
+
+### Overview
+
+The Championship Prediction feature provides AI-powered predictions for both the Driver and Constructor championships for the **current season only**. Predictions are based on:
+
+1. **Current championship standings** — Real points from the Jolpica-F1 API
+2. **Season form analysis** — ALL completed races this season (not just recent ones)
+3. **Statistical projection** — Points pace extrapolated to season end
+4. **AI synthesis** — Qwen LLM combines all data into a reasoned prediction
+
+### How Predictions Work
+
+#### Step 1: Data Collection
+
+```
+predict_driver_champion()
+  ├── get_driver_standings(current_year)     → Current championship table
+  ├── get_season_schedule(current_year)       → All races + dates
+  └── For each of top 5 drivers:
+        └── get_driver_season_results()       → Season race-by-race results
+```
+
+#### Step 2: Form Analysis
+
+For each of the top 5 drivers/constructors, the service calculates comprehensive form metrics using **ALL completed races** in the current season:
+
+**Driver Form:**
+| Metric | Calculation |
+|--------|-------------|
+| `races_analyzed` | Count of all classified races this season |
+| `avg_points` | Total points ÷ races analyzed |
+| `total_points` | Sum of points from all races |
+| `wins` | Count of P1 finishes |
+| `podiums` | Count of P1, P2, P3 finishes |
+| `dnfs` | Count of retired/DNF results |
+| `win_pct` | (wins ÷ races_analyzed) × 100 |
+| `podium_pct` | (podiums ÷ races_analyzed) × 100 |
+| `dnf_pct` | (dnfs ÷ races_analyzed) × 100 |
+
+**Constructor Form:**
+| Metric | Calculation |
+|--------|-------------|
+| `races_analyzed` | Count of all races this season |
+| `avg_points_per_race` | Total points ÷ races (both drivers combined) |
+| `total_points_recent` | Sum of all constructor points |
+
+#### Step 3: Statistical Projection
+
+A simple but effective linear projection based on current points pace:
+
+```python
+pace_per_race = current_points / races_completed
+predicted_additional = pace_per_race * races_remaining
+predicted_final = current_points + predicted_additional
+```
+
+This gives a baseline prediction that the AI can adjust based on form, momentum, and DNF risk.
+
+#### Step 4: AI Synthesis
+
+The prediction data is sent to Qwen with a structured prompt:
+
+```
+Formula 1 drivers Championship Prediction — Season 2026
+
+CURRENT STANDINGS (Top 5):
+  [{"position": 1, "driver_name": "...", "points": 250}, ...]
+
+FORM ANALYSIS (Last 5 Races):
+  {"max_verstappen": {"avg_points": 20.8, "wins": 7, ...}, ...}
+
+STATISTICAL PREDICTION (Based on points pace):
+  {"max_verstappen": {"predicted_final": 480, ...}, ...}
+
+RACES COMPLETED: 12
+RACES REMAINING: 12
+```
+
+The AI returns a structured JSON prediction:
+```json
+{
+  "predicted_champion_id": "max_verstappen",
+  "predicted_champion_name": "Max Verstappen",
+  "predicted_final_points": 480,
+  "confidence": 0.85,
+  "reasoning": "Based on current form and the 50-point gap...",
+  "top_contenders": [
+    {"id": "max_verstappen", "name": "Max Verstappen", "predicted_points": 480, "chance_pct": 0.85},
+    {"id": "lewis_hamilton", "name": "Lewis Hamilton", "predicted_points": 390, "chance_pct": 0.12}
+  ]
+}
+```
+
+#### Step 5: Merge & Cache
+
+The backend merges statistical and AI predictions, then caches the result for **6 hours** using the `AICache` table. Cache keys:
+- `prediction_drivers`
+- `prediction_constructors`
+
+### Frontend: PredictionsTab Component
+
+Located at `frontend/src/components/tabs/PredictionsTab.tsx`.
+
+**Design:**
+- Two buttons at the top: **🏎️ Drivers Championship** and **🏢 Constructors Championship**
+- Both buttons start **gray** (inactive) — click either to load prediction
+- Active button turns **red** while loading and after prediction loads
+- Prediction auto-loads on button click (no separate "Predict" button)
+
+**UI Sections (when loaded):**
+
+1. **Season Info Bar** — Shows current season year and races completed/total
+2. **Predicted Champion Card** — Large card with:
+   - 🏆 Trophy icon + champion name
+   - Confidence percentage (large, yellow)
+   - Current points vs. predicted final points
+   - Confidence progress bar (gradient yellow)
+3. **Top Contenders Table** — Ranked table with:
+   - Medal icons (🥇🥈🥉) for top 3
+   - Clickable names linking to driver/constructor pages
+   - Predicted final points
+   - Championship chance percentage (if AI provided)
+4. **AI Analysis** — Free-form text explanation of the prediction
+5. **Form Analysis Grid** — Responsive grid (1-3 columns) showing:
+   - Driver/constructor name (clickable link)
+   - All form metrics (avg points, wins, podiums, win%, DNF%, etc.)
+   - Styled cards with borders and stat rows
+
+### API Endpoints
+
+#### GET /api/predictions/drivers
+
+Returns the AI prediction for the current season's driver championship.
+
+**Query Parameters:** None (current year only)
+
+**Response:** `PredictionResponse` JSON object
+
+**Caching:** 6 hours via `AICache`
+
+**Example:**
+```bash
+curl http://localhost:8000/api/predictions/drivers
+```
+
+#### GET /api/predictions/constructors
+
+Returns the AI prediction for the current season's constructor championship.
+
+**Query Parameters:** None (current year only)
+
+**Response:** `PredictionResponse` JSON object
+
+**Caching:** 6 hours via `AICache`
+
+### TypeScript Types
+
+```typescript
+interface PredictionResponse {
+  season: number;
+  type: 'drivers' | 'constructors';
+  races_completed: number;
+  races_remaining: number;
+  predicted_champion: DriverPredictionChampion | ConstructorPredictionChampion | null;
+  top_contenders: PredictionContender[];
+  form_analysis: Record<string, DriverFormAnalysis | ConstructorFormAnalysis>;
+  ai_reasoning: string;
+  error?: string;
+}
+
+interface DriverPredictionChampion {
+  driver_id: string;
+  name: string;
+  current_points: number;
+  predicted_final_points: number;
+  confidence: number;
+}
+
+interface PredictionContender {
+  id: string;
+  name: string;
+  predicted_points: number;
+  chance_pct?: number;
+}
+
+interface DriverFormAnalysis {
+  races_analyzed: number;
+  avg_points: number;
+  total_points: number;
+  wins: number;
+  podiums: number;
+  dnfs: number;
+  win_pct: number;
+  podium_pct: number;
+  dnf_pct: number;
+}
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| Current year only | Predictions only make sense for the active season |
+| All completed races | Full season form is more accurate than just last 5 |
+| 6-hour cache TTL | Data only changes between races, not during the week |
+| No auth required | Predictions are public data, like standings |
+| Statistical + AI hybrid | AI alone might hallucinate; stats ground the prediction |
+| Graceful AI fallback | If AI unavailable, statistical prediction still works |
+
+### Testing
+
+11 unit tests in `tests/test_predictions.py`:
+
+| Test | Purpose |
+|------|---------|
+| `test_predict_driver_championship_returns_prediction` | Driver endpoint returns full response |
+| `test_predict_driver_champion_structure` | Champion object has required fields |
+| `test_predict_constructor_championship_returns_prediction` | Constructor endpoint returns full response |
+| `test_predict_constructor_champion_structure` | Champion object has required fields |
+| `test_predict_driver_no_year_parameter` | No year param required (current year only) |
+| `test_predict_constructor_no_year_parameter` | No year param required (current year only) |
+| `test_prediction_works_without_ai` | Statistical fallback when AI unavailable |
+| `test_form_analysis_included_in_prediction` | Form analysis present in response |
+| `test_races_completed_and_remaining` | Race counts are valid integers ≥ 0 |
+
+All tests use mocked `ErgastClient`, `AISummarizer`, and cache services for deterministic results.
+
+---
+
 ## 14. Security
 
 ### Authentication
@@ -609,10 +907,12 @@ docker compose up --build
 | `test_api.py` | 21 | Unit tests for API endpoints |
 | `test_e2e.py` | 28+ | E2E tests against running server |
 | `test_retrospective.py` | 7 | Retrospective endpoint tests |
-| `test_compare.py` | 8 | Driver comparison endpoint tests |
+| `test_compare.py` | 8 | Driver/constructor comparison tests |
+| `test_predictions.py` | 9 | Championship prediction tests |
 | `test_data_parser.py` | 4 | Data parser tests |
 | `test_ai_assistant.py` | 5 | AI fallback tests |
-| **Total** | **73+** | All passing |
+| `test_push_notifications.py` | 5 | Push notification tests |
+| **Total** | **64** | All passing (unit) |
 
 ### Running Tests
 

@@ -337,3 +337,57 @@ export interface ConstructorResponse {
     wins: number;
   };
 }
+
+// Prediction types
+export interface DriverFormAnalysis {
+  races_analyzed: number;
+  avg_points: number;
+  total_points: number;
+  wins: number;
+  podiums: number;
+  dnfs: number;
+  win_pct: number;
+  podium_pct: number;
+  dnf_pct: number;
+}
+
+export interface ConstructorFormAnalysis {
+  races_analyzed: number;
+  avg_points_per_race: number;
+  total_points_recent: number;
+}
+
+export interface PredictionContender {
+  id: string;
+  name: string;
+  predicted_points: number;
+  chance_pct?: number;
+}
+
+export interface DriverPredictionChampion {
+  driver_id: string;
+  name: string;
+  current_points: number;
+  predicted_final_points: number;
+  confidence: number;
+}
+
+export interface ConstructorPredictionChampion {
+  constructor_id: string;
+  name: string;
+  current_points: number;
+  predicted_final_points: number;
+  confidence: number;
+}
+
+export interface PredictionResponse {
+  season: number;
+  type: 'drivers' | 'constructors';
+  races_completed: number;
+  races_remaining: number;
+  predicted_champion: DriverPredictionChampion | ConstructorPredictionChampion | null;
+  top_contenders: PredictionContender[];
+  form_analysis: Record<string, DriverFormAnalysis | ConstructorFormAnalysis>;
+  ai_reasoning: string;
+  error?: string;
+}

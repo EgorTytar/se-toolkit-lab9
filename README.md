@@ -7,6 +7,7 @@ AI-powered Formula 1 dashboard with race summaries, standings, and a smart chat 
 - **Latest Race** — AI-generated summaries with real-time data, podium cards, and highlights
 - **Browse Seasons** — Explore any season's race calendar with inline AI summaries
 - **Standings** — Driver and Constructor championship tables for any year
+- **🔮 Predictions** — AI-powered championship predictions with form analysis and contender odds
 - **Reminders** — Set email notifications for upcoming races
 - **🤖 AI Assistant Chat** — Free-form F1 Q&A with verified data, web search fallback, and conversation history
 - **Driver Pages** — Clickable driver profiles with season results
@@ -71,6 +72,8 @@ Open **`http://localhost:8000`** for the production build or **`http://localhost
 | GET/POST/PUT/DELETE | `/api/reminders` | Race reminders |
 | GET/POST/DELETE | `/api/chat/sessions` | Chat session management |
 | POST | `/api/chat/sessions/{id}/generate` | Generate AI chat response |
+| GET | `/api/predictions/drivers` | AI driver championship prediction |
+| GET | `/api/predictions/constructors` | AI constructor championship prediction |
 
 ## Project Structure
 
@@ -101,13 +104,17 @@ lab9/
 │   ├── data_parser.py         # Raw data → prompt formatter
 │   ├── ai_assistant.py        # Qwen LLM summarizer
 │   ├── auth.py                # Password hashing (bcrypt), JWT
-│   └── scheduler.py           # APScheduler: reminder emails
+│   ├── scheduler.py           # APScheduler: reminder emails
+│   ├── cache_service.py       # AI response caching with TTL
+│   └── prediction_service.py  # Championship predictions with form analysis
 ├── endpoints/
 │   ├── auth.py                # POST /api/auth/*
 │   ├── users.py               # GET/PUT /api/users/me
 │   ├── reminders.py           # GET/POST/PUT/DELETE /api/reminders/*
 │   ├── favorites.py           # GET/POST/DELETE /api/users/me/favorites/*
-│   └── chat.py                # Chat sessions + AI responses
+│   ├── chat.py                # Chat sessions + AI responses
+│   ├── compare.py             # GET /api/compare/* — Driver & constructor H2H
+│   └── predictions.py         # GET /api/predictions/* — Championship predictions
 ├── models/
 │   ├── schemas.py             # AI response schemas
 │   └── reminder_schemas.py    # Reminder schemas
@@ -154,9 +161,12 @@ All race data comes from the **Jolpica-F1 API** (`api.jolpi.ca`) — a community
 ✅ Driver head-to-head pages
 ✅ Circuit pages with recent results
 ✅ Favorites system (heart button on driver pages)
-✅ All 58 tests passing
+✅ Constructor comparison tool
+✅ Constructor pages with year selector + results
+✅ Championship predictions with AI-powered analysis
+✅ Browser push notifications
+✅ 6-hour prediction caching
+✅ All 64+ tests passing
 
 **Planned for future:**
-- Season Retrospective — AI summary of entire season storylines
-- Driver Head-to-Head comparison tool
-- Championship Prediction
+- Live Race Weekend — real-time session results during race weekends

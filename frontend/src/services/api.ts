@@ -17,6 +17,7 @@ import type {
   ConstructorComparisonResponse,
   ConstructorOption,
   ConstructorResponse,
+  PredictionResponse,
 } from '../types/api';
 
 async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
@@ -237,4 +238,12 @@ export const pushApi = {
     apiFetch<{ status: string; count: number }>(`${BASE}/api/push/test`, {
       method: 'POST',
     }),
+};
+
+// Prediction endpoints
+export const predictionsApi = {
+  getDriverPrediction: () =>
+    apiFetch<PredictionResponse>(`${BASE}/api/predictions/drivers`),
+  getConstructorPrediction: () =>
+    apiFetch<PredictionResponse>(`${BASE}/api/predictions/constructors`),
 };

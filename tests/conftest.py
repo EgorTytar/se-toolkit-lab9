@@ -72,8 +72,8 @@ SAMPLE_DRIVER_STANDINGS = [
 ]
 
 SAMPLE_CONSTRUCTOR_STANDINGS = [
-    {"position": 1, "constructor": "Red Bull", "points": 860.0, "wins": 21},
-    {"position": 2, "constructor": "Mercedes", "points": 409.0, "wins": 1},
+    {"position": 1, "constructor_id": "red_bull", "constructor": "Red Bull", "nationality": "Austrian", "points": 860.0, "wins": 21},
+    {"position": 2, "constructor_id": "mercedes", "constructor": "Mercedes", "nationality": "German", "points": 409.0, "wins": 1},
 ]
 
 SAMPLE_DRIVER_INFO = {
