@@ -433,11 +433,11 @@ race_cache (
 3. **Race Reminders** — ✅ DONE: email scheduler, user-configured alerts
 4. **AI Assistant Chat** — ✅ DONE: free-form Q&A with verified data + web search
 5. **Frontend Migration** — ✅ DONE: React 18 + TypeScript + Tailwind CSS
-6. **Season Retrospective** — 🔲 Planned
+6. **Season Retrospective** — ✅ DONE: AI season narratives
 7. **Driver Head-to-Head** — ✅ DONE: career stats + race-by-race H2H record
 8. **Team Comparison** — ✅ DONE: constructor H2H with historical data
 9. **Championship Prediction** — ✅ DONE: AI-powered predictions with form analysis
-10. **Live Race Weekend** — 🔲 Planned
+10. **Live Race Weekend** — ✅ DONE: real-time session results during race weekends
 
 ---
 
@@ -800,20 +800,13 @@ All planned features implemented, tested, and documented. No pending development
 | Test Suite (64 tests) | ✅ |
 | Documentation | ✅ |
 
-### Remaining Features (Low Priority)
+### Remaining Features
 
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Live Race Weekend | High | Real-time session results during race weekends |
-| Push Notification Settings | Low | User preferences for notification types/timing |
+All core features are implemented and shipped. Future enhancements could include:
 
-### Known Limitations
-
-| Issue | Impact | Notes |
-|-------|--------|-------|
-| Push notifications on localhost | Low | Chrome suppresses on HTTP — works on production (HTTPS) |
-| Constructor comparison speed | Low | Slow for large teams due to API rate limiting |
-| Chat rate limiting in-memory | Medium | Lost on restart — needs Redis for production |
-| CORS allow_origins=["*"] | Medium | Must restrict in production |
-| No CI/CD | Medium | Manual deployment only |
+| Feature | Notes |
+|---------|-------|
+| Live Race Weekend Enhancements | Push notifications for session start, real-time timing screen |
+| Push Notification Settings | User-level preferences for notification types and quiet hours |
+| Historical Predictions | Predictions for past seasons for retrospective analysis |
 ```

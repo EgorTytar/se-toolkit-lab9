@@ -54,46 +54,40 @@ AI-powered Formula 1 dashboard with real-time race data, standings, predictions,
 | AI Response Caching | 6-24 hour TTL depending on content type |
 | Test Suite | 64 unit tests passing |
 
-### Not Yet Implemented
-
-| Feature | Priority | Notes |
-|---------|----------|-------|
-| Live Race Weekend | High | Real-time session results during race weekends |
-| Push Notification Settings | Low | User preferences for notification types and timing |
-| Championship Predictions for Past Seasons | Low | Currently current-year only |
-
 ## Usage
 
-### Quick Start (Docker — Recommended)
+### 1. Start the Application
 
 ```bash
+# One command — builds and starts everything
 docker compose up --build
 ```
 
 Open **`http://localhost:8000`** in your browser.
 
-### Local Development
+### 2. Explore the Dashboard
+
+No account needed for browsing:
+- **Latest Race** — View podium cards and AI-generated race summaries
+- **Browse Seasons** — Enter any year (1950–present) to see the full race calendar
+- **Standings** — Driver and Constructor championship tables
+- **Predictions** — AI-powered championship predictions with form analysis
+- **Compare** — Head-to-head driver and constructor comparisons
+- **AI Assistant** — Free-form F1 Q&A (requires account)
+
+### 3. Create an Account
+
+Click **Account → Register** to unlock:
+- Save favorite drivers and teams
+- Set email/push reminders for upcoming races
+- Use the AI chat assistant with conversation history
+- View season retrospectives
+
+### 4. Run Tests
 
 ```bash
-# Backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-
-# Frontend (separate terminal)
-cd frontend
-npm install
-npm run dev
-```
-
-Open **`http://localhost:8000`** for the production build or **`http://localhost:5173`** for the Vite dev server.
-
-### Running Tests
-
-```bash
-# Via Docker
+# All 64 unit tests
 docker exec lab9-f1-assistant-1 python -m pytest tests/ -v --ignore=tests/test_e2e.py
-
-# All 64 unit tests pass
 ```
 
 ## Deployment
@@ -127,7 +121,7 @@ sudo apt install nginx certbot python3-certbot-nginx
 ```bash
 scp -r . user@vm-ip:/opt/f1-assistant/
 # Or clone from GitHub:
-git clone https://github.com/YOUR_USERNAME/se-toolkit-hackathon.git /opt/f1-assistant
+git clone https://github.com/EgorTytar/se-toolkit-hackathon.git /opt/f1-assistant
 cd /opt/f1-assistant
 ```
 
