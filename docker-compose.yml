@@ -32,6 +32,8 @@ services:
       SMTP_USER: ""
       SMTP_PASSWORD: ""
       SENDER_EMAIL: "f1-assistant@example.com"
+      QWEN_BASE_URL: "http://host.docker.internal:42005/v1"
+      QWEN_API_KEY: "my-secret-qwen-key"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
