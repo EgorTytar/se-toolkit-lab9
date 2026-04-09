@@ -1,0 +1,16 @@
+[Unit]
+Description=Qwen Token Auto-Refresh Service
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStart=/opt/f1-assistant/scripts/refresh-qwen-token.sh
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=qwen-token-refresh
+
+[Install]
+WantedBy=multi-user.target

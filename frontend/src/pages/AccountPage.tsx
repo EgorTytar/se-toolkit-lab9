@@ -307,18 +307,14 @@ export default function AccountPage() {
       {/* Favorites Tab */}
       {activeTab === 'favorites' && (
         <div className="bg-gray-800 rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Favorite Drivers</h2>
+          <h2 className="text-xl font-bold mb-4">Favorite Drivers & Teams</h2>
           {loading ? (
             <div className="flex justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
             </div>
           ) : favorites.length === 0 ? (
             <p className="text-gray-400">
-              No favorites yet. Visit a{' '}
-              <Link to="/" className="text-red-400 hover:underline">
-                driver page
-              </Link>{' '}
-              and click the heart icon!
+              No favorites yet. Visit a driver or team page and click the heart icon!
             </p>
           ) : (
             <div className="space-y-3">
@@ -327,12 +323,23 @@ export default function AccountPage() {
                   key={fav.id}
                   className="flex items-center justify-between p-3 bg-gray-700 rounded-lg"
                 >
-                  <Link
-                    to={`/driver/${fav.driver_id}`}
-                    className="text-red-400 hover:underline font-medium"
-                  >
-                    {fav.driver_name} ({fav.driver_code})
-                  </Link>
+                  {fav.driver_id ? (
+                    <Link
+                      to={`/driver/${fav.driver_id}`}
+                      className="text-red-400 hover:underline font-medium"
+                    >
+                      {fav.driver_name} {fav.driver_code ? `(${fav.driver_code})` : ''}
+                    </Link>
+                  ) : fav.constructor_id ? (
+                    <Link
+                      to={`/constructor/${fav.constructor_id}`}
+                      className="text-red-400 hover:underline font-medium"
+                    >
+                      {fav.constructor_name}
+                    </Link>
+                  ) : (
+                    <span className="text-gray-400">Unknown</span>
+                  )}
                   <button
                     onClick={() => removeFavorite(fav.id)}
                     className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700 transition"

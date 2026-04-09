@@ -117,9 +117,11 @@ export interface User {
 
 export interface FavoriteDriver {
   id: number;
-  driver_id: string;
-  driver_code: string;
-  driver_name: string;
+  driver_id: string | null;
+  driver_code: string | null;
+  driver_name: string | null;
+  constructor_id: string | null;
+  constructor_name: string | null;
   created_at: string;
 }
 
