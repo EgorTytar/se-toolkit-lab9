@@ -5,7 +5,7 @@ import os
 ERGAST_BASE_URL = "https://api.jolpi.ca/ergast/f1"
 
 # Default request timeout (seconds)
-ERGAST_TIMEOUT = 10.0
+ERGAST_TIMEOUT = 30.0
 
 # Qwen LLM settings (via local Qwen Code API — OAuth authenticated)
 # When running in Docker, use host.docker.internal to reach the host

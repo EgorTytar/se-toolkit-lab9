@@ -21,18 +21,26 @@ class ErgastClient:
         return self._client
 
     async def _get(self, url: str, retries: int = 5) -> dict:
-        """Perform an async GET request to the Ergast API with retry on 429."""
+        """Perform an async GET request to the Ergast API with retry on 429 and timeouts."""
+        import httpx
         client = await self._get_client()
         last_response = None
         for attempt in range(retries):
-            response = await client.get(f"{self.base_url}/{url}")
-            last_response = response
-            if response.status_code == 429:
-                wait = 2 ** (attempt + 1)  # 2s, 4s, 8s, 16s, 32s
-                await asyncio.sleep(wait)
-                continue
-            response.raise_for_status()
-            return response.json()
+            try:
+                response = await client.get(f"{self.base_url}/{url}")
+                last_response = response
+                if response.status_code == 429:
+                    wait = 2 ** (attempt + 1)  # 2s, 4s, 8s, 16s, 32s
+                    await asyncio.sleep(wait)
+                    continue
+                response.raise_for_status()
+                return response.json()
+            except httpx.ReadTimeout:
+                wait = 2 ** (attempt + 1)
+                if attempt < retries - 1:
+                    await asyncio.sleep(wait)
+                    continue
+                raise
         # All retries exhausted
         assert last_response is not None
         last_response.raise_for_status()
