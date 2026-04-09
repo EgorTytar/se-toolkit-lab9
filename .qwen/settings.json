@@ -24,7 +24,8 @@
       "Bash(npm install *)",
       "Bash(docker logs *)",
       "Bash(docker ps *)",
-      "Bash(time *)"
+      "Bash(time *)",
+      "Bash(scp *)"
     ]
   },
   "$version": 3
