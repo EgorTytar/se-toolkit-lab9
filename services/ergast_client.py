@@ -249,6 +249,37 @@ class ErgastClient:
 
         return all_results
 
+    async def get_constructor_season_results(self, constructor_ref: str, year: int) -> list[dict]:
+        """Fetch race results for a constructor in a specific season."""
+        data = await self._get(f"{year}/constructors/{constructor_ref}/results.json")
+        try:
+            races = data["MRData"]["RaceTable"]["Races"]
+        except (KeyError, IndexError):
+            return []
+
+        results = []
+        for race in races:
+            for result_entry in race.get("Results", []):
+                driver = result_entry.get("Driver", {})
+                constructor = result_entry.get("Constructor", {})
+                results.append({
+                    "season": int(race.get("season", 0)),
+                    "round": int(race.get("round", 0)),
+                    "race_name": race.get("raceName", ""),
+                    "circuit": race.get("Circuit", {}).get("circuitName", ""),
+                    "circuit_id": race.get("Circuit", {}).get("circuitId", ""),
+                    "date": race.get("date", ""),
+                    "position": result_entry.get("position", ""),
+                    "grid": int(result_entry.get("grid", 0)),
+                    "points": float(result_entry.get("points", 0)),
+                    "status": result_entry.get("status", ""),
+                    "driver": driver.get("driverId", ""),
+                    "constructor": constructor.get("name", ""),
+                    "constructor_id": constructor.get("constructorId", ""),
+                })
+
+        return results
+
     async def get_constructor_all_results(self, constructor_ref: str) -> list[dict]:
         """Fetch ALL race results for a constructor across their entire history.
 
