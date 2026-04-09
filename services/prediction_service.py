@@ -234,26 +234,23 @@ class PredictionService:
     async def _calculate_constructor_form(self, constructor_ref: str, year: int, races_completed: int) -> dict:
         """Calculate a constructor's form over ALL completed races this season."""
         try:
-            season_results = await self.ergast.get_constructor_all_results(constructor_ref)
+            season_results = await self.ergast.get_constructor_season_results(constructor_ref, year)
         except Exception:
             return self._empty_form()
 
-        # Filter to this year
-        year_results = [r for r in season_results if r.get("season") == year]
-
-        if not year_results:
+        if not season_results:
             return self._empty_form()
 
         # Group by race (round) and sum constructor points
         race_points = {}
-        for r in year_results:
+        for r in season_results:
             round_num = r.get("round", 0)
             pts = float(r.get("points", 0))
             if round_num not in race_points:
                 race_points[round_num] = 0
             race_points[round_num] += pts
 
-        # Use ALL completed rounds (not just last N)
+        # Use ALL completed rounds
         sorted_rounds = sorted(race_points.keys())
 
         if not sorted_rounds:

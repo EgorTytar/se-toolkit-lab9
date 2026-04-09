@@ -12,11 +12,13 @@ type PredictionType = 'drivers' | 'constructors';
 export default function PredictionsTab() {
   const [predictionType, setPredictionType] = useState<PredictionType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingType, setLoadingType] = useState<PredictionType | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
 
   const fetchPrediction = async (type: PredictionType) => {
     setLoading(true);
+    setLoadingType(type);
     setError(null);
     setPrediction(null);
     try {
@@ -31,6 +33,7 @@ export default function PredictionsTab() {
       setError(err.response?.data?.detail || 'Failed to load prediction');
     } finally {
       setLoading(false);
+      setLoadingType(null);
     }
   };
 
@@ -50,7 +53,7 @@ export default function PredictionsTab() {
               : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
           } disabled:opacity-50`}
         >
-          {loading && predictionType === 'drivers' ? (
+          {loading && loadingType === 'drivers' ? (
             <span className="flex items-center gap-2">
               <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
               Analyzing Drivers...
@@ -68,7 +71,7 @@ export default function PredictionsTab() {
               : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
           } disabled:opacity-50`}
         >
-          {loading && predictionType === 'constructors' ? (
+          {loading && loadingType === 'constructors' ? (
             <span className="flex items-center gap-2">
               <span className="inline-block animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
               Analyzing Teams...
