@@ -798,9 +798,11 @@ async def get_constructor_info(constructor_id: str, year: int = 0) -> dict:
     # Season stats
     season_stats = {}
     if season_results:
+        # Count unique races (not sum of both drivers)
+        unique_rounds = set(r["round"] for r in season_results)
         positions = [int(r["position"]) for r in season_results if str(r["position"]).isdigit()]
         season_stats = {
-            "races": len(season_results),
+            "races": len(unique_rounds),
             "points": sum(r.get("points", 0) for r in season_results),
             "best_finish": min(positions) if positions else None,
             "wins": sum(1 for r in season_results if str(r["position"]) == "1"),
